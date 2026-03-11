@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { statusSchema } from "@/lib/validators/task";
 
@@ -48,19 +49,16 @@ export async function POST(
     });
     return NextResponse.json(taskInstance, { status: 201 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      {
-        error: "Task instance already exists (or invalid taskId)",
-        detail: String((e as Error)?.message ?? e),
-      },
-      { status: 409 },
-    );
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json({ error: "Task instance already exists" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ orgId: string }> }
+  { params }: { params: Promise<{ orgId: string }> },
 ) {
   const { orgId } = await params;
 
@@ -71,22 +69,31 @@ export async function GET(
   // Build filter
   const where: Record<string, unknown> = { orgId };
 
-  // If you pass status=..., validate it
+  if (statusParam && completedParam !== null) {
+    return NextResponse.json(
+      { error: "Use either 'status' or 'completed', not both" },
+      { status: 400 },
+    );
+  }
+
   if (statusParam) {
     const parsed = statusSchema.safeParse({ status: statusParam });
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Validation failed", issues: parsed.error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
     where.status = parsed.data.status;
-  }
-
-  // If completed=false, exclude completed statuses
-  // (adjust list if you treat SKIPPED as completed too)
-  if (completedParam === "false") {
-    where.status = { notIn: ["DONE"] };
+  } else if (completedParam === "false") {
+    where.status = { notIn: ["DONE", "SKIPPED"] };
+  } else if (completedParam === "true") {
+    where.status = { in: ["DONE", "SKIPPED"] };
+  } else if (completedParam !== null) {
+    return NextResponse.json(
+      { error: "'completed' must be 'true' or 'false'" },
+      { status: 400 },
+    );
   }
 
   const items = await prisma.taskInstance.findMany({
