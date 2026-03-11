@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const assigneeSchema = z.object({
@@ -59,13 +60,10 @@ export async function POST(
     });
     return NextResponse.json(assignee, { status: 201 });
   } catch (e: unknown) {
-    return NextResponse.json(
-      {
-        error: "Assignee already exists",
-        detail: String((e as Error)?.message ?? e),
-      },
-      { status: 409 },
-    );
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json({ error: "Assignee already exists" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const createMembershipSchema = z.object({
@@ -43,6 +44,17 @@ export async function POST(
     }
   }
 
+  const user = await prisma.user.findFirst({
+    where: { id: data.userId },
+    select: { id: true },
+  });
+  if (!user) {
+    return NextResponse.json(
+      { error: "Invalid userId: not found" },
+      { status: 400 },
+    );
+  }
+
   try {
     const membership = await prisma.membership.create({
       data: {
@@ -54,14 +66,15 @@ export async function POST(
 
     return NextResponse.json(membership, { status: 201 });
   } catch (e: unknown) {
-    // likely @@unique([orgId, userId]) conflict
-    return NextResponse.json(
-      {
-        error: "Membership already exists (or invalid roleId)",
-        detail: String((e as Error)?.message ?? e),
-      },
-      { status: 409 },
-    );
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      if (e.code === "P2002") {
+        return NextResponse.json({ error: "Membership already exists" }, { status: 409 });
+      }
+      if (e.code === "P2003") {
+        return NextResponse.json({ error: "Invalid roleId" }, { status: 400 });
+      }
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
