@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TaskInstanceStatus } from "@prisma/client";
 
 export const createTaskSchema = z
   .object({
@@ -20,7 +21,7 @@ export const createTaskSchema = z
     // Your rule: must set at least one of minWaitDays/maxWaitDays
     if (data.minWaitDays == null && data.maxWaitDays == null) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["minWaitDays"],
         message: "Provide minWaitDays and/or maxWaitDays",
       });
@@ -33,18 +34,18 @@ export const createTaskSchema = z
       data.minWaitDays > data.maxWaitDays
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["minWaitDays"],
         message: "minWaitDays cannot be greater than maxWaitDays",
       });
     }
   });
 
-const status = ["TODO", "IN_PROGRESS", "DONE", "SKIPPED"] as const;
-
-export const statusSchema = z.object({
-  status: z.enum(status),
+export const updateTaskInstanceStatusSchema = z.object({
+  status: z.nativeEnum(TaskInstanceStatus),
 });
 
+export type UpdateTaskStatusInput = z.infer<
+  typeof updateTaskInstanceStatusSchema
+>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
-export type UpdateTaskStatusInput = z.infer<typeof statusSchema>;
