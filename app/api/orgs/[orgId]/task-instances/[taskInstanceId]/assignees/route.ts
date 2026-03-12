@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, OrgPermission } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-
-const assigneeSchema = z.object({
-  membershipId: z.string(),
-});
+import { requireOrgMember, requireOrgPermission } from "@/lib/authz";
+import {
+  CreateAssigneeSchema,
+  DeleteAssigneeSchema,
+} from "@/lib/validators/assignee";
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ orgId: string; taskInstanceId: string }> },
 ) {
   const { orgId, taskInstanceId } = await params;
+
+  const authz = await requireOrgPermission(orgId, OrgPermission.TASK_ASSIGN);
+  if (!authz.ok) return authz.response;
 
   let json: unknown;
   try {
@@ -20,7 +23,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const parsed = assigneeSchema.safeParse(json);
+  const parsed = CreateAssigneeSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Validation failed", issues: parsed.error.issues },
@@ -60,10 +63,19 @@ export async function POST(
     });
     return NextResponse.json(assignee, { status: 201 });
   } catch (e: unknown) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      return NextResponse.json({ error: "Assignee already exists" }, { status: 409 });
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "Assignee already exists" },
+        { status: 409 },
+      );
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -72,6 +84,9 @@ export async function GET(
   { params }: { params: Promise<{ orgId: string; taskInstanceId: string }> },
 ) {
   const { orgId, taskInstanceId } = await params;
+
+  const authz = await requireOrgMember(orgId);
+  if (!authz.ok) return authz.response;
 
   const assignees = await prisma.taskInstanceAssignee.findMany({
     where: {
@@ -102,8 +117,11 @@ export async function DELETE(
 ) {
   const { orgId, taskInstanceId } = await params;
 
+  const authz = await requireOrgPermission(orgId, OrgPermission.TASK_ASSIGN);
+  if (!authz.ok) return authz.response;
+
   const json = await req.json().catch(() => null);
-  const parsed = assigneeSchema.safeParse(json);
+  const parsed = DeleteAssigneeSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Validation failed", issues: parsed.error.issues },

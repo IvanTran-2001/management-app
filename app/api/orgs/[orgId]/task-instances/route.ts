@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { OrgPermission, Prisma, TaskInstanceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { statusSchema } from "@/lib/validators/task";
-
-const createTaskInstanceSchema = z.object({
-  taskId: z.string(),
-});
+import { updateTaskInstanceStatusSchema } from "@/lib/validators/task";
+import { requireOrgMember, requireOrgPermission } from "@/lib/authz";
+import { createTaskInstanceSchema } from "@/lib/validators/task-instance";
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ orgId: string }> },
 ) {
   const { orgId } = await params;
+
+  const authz = await requireOrgPermission(orgId, OrgPermission.TASK_CREATE);
+  if (!authz.ok) return authz.response;
 
   let json: unknown;
   try {
@@ -49,10 +49,19 @@ export async function POST(
     });
     return NextResponse.json(taskInstance, { status: 201 });
   } catch (e: unknown) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      return NextResponse.json({ error: "Task instance already exists" }, { status: 409 });
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "Task instance already exists" },
+        { status: 409 },
+      );
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -62,12 +71,15 @@ export async function GET(
 ) {
   const { orgId } = await params;
 
+  const authz = await requireOrgMember(orgId);
+  if (!authz.ok) return authz.response;
+
   const url = new URL(req.url);
   const statusParam = url.searchParams.get("status");
   const completedParam = url.searchParams.get("completed"); // "true" | "false" | null
 
   // Build filter
-  const where: Record<string, unknown> = { orgId };
+  const where: Prisma.TaskInstanceWhereInput = { orgId };
 
   if (statusParam && completedParam !== null) {
     return NextResponse.json(
@@ -77,7 +89,9 @@ export async function GET(
   }
 
   if (statusParam) {
-    const parsed = statusSchema.safeParse({ status: statusParam });
+    const parsed = updateTaskInstanceStatusSchema.safeParse({
+      status: statusParam,
+    });
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Validation failed", issues: parsed.error.issues },
@@ -86,9 +100,13 @@ export async function GET(
     }
     where.status = parsed.data.status;
   } else if (completedParam === "false") {
-    where.status = { notIn: ["DONE", "SKIPPED"] };
+    where.status = {
+      notIn: [TaskInstanceStatus.DONE, TaskInstanceStatus.SKIPPED],
+    };
   } else if (completedParam === "true") {
-    where.status = { in: ["DONE", "SKIPPED"] };
+    where.status = {
+      in: [TaskInstanceStatus.DONE, TaskInstanceStatus.SKIPPED],
+    };
   } else if (completedParam !== null) {
     return NextResponse.json(
       { error: "'completed' must be 'true' or 'false'" },
