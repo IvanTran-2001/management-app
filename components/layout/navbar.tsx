@@ -1,4 +1,3 @@
-
 import { auth, signOut } from "@/auth";
 import Image from "next/image";
 import Link from "next/link";
@@ -20,10 +19,12 @@ export const NavBar = async () => {
   const user = session?.user;
 
   const orgs = user?.id
-    ? await prisma.membership.findMany({
-        where: { userId: user.id },
-        select: { org: { select: { id: true, title: true } } },
-      }).then((ms) => ms.map((m) => m.org))
+    ? await prisma.membership
+        .findMany({
+          where: { userId: user.id },
+          select: { org: { select: { id: true, title: true } } },
+        })
+        .then((ms) => ms.map((m) => m.org))
     : [];
 
   return (
@@ -61,18 +62,18 @@ export const NavBar = async () => {
               {user.email}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/signin" });
-                }}
-              >
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/signin" });
+              }}
+            >
+              <DropdownMenuItem asChild>
                 <button type="submit" className="w-full text-left">
                   Sign out
                 </button>
-              </form>
-            </DropdownMenuItem>
+              </DropdownMenuItem>
+            </form>
           </DropdownMenuContent>
         </DropdownMenu>
       )}

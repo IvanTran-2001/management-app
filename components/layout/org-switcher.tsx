@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,13 +13,18 @@ import {
 type Org = { id: string; title: string };
 
 export function OrgSwitcher({ orgs }: { orgs: Org[] }) {
-  const [selected, setSelected] = useState<Org | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Derive active org from the current URL e.g. /orgs/[orgId]/...
+  const activeOrgId = pathname.match(/^\/orgs\/([^\/]+)/)?.[1];
+  const activeOrg = orgs.find((o) => o.id === activeOrgId);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2 max-w-48">
-          <span className="truncate">{selected?.title ?? "Select Org"}</span>
+          <span className="truncate">{activeOrg?.title ?? "Select Org"}</span>
           <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
@@ -28,7 +33,10 @@ export function OrgSwitcher({ orgs }: { orgs: Org[] }) {
           <DropdownMenuItem disabled>No organizations</DropdownMenuItem>
         ) : (
           orgs.map((org) => (
-            <DropdownMenuItem key={org.id} onSelect={() => setSelected(org)}>
+            <DropdownMenuItem
+              key={org.id}
+              onSelect={() => router.push(`/orgs/${org.id}`)}
+            >
               {org.title}
             </DropdownMenuItem>
           ))

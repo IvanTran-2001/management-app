@@ -115,10 +115,10 @@ Both return `{ ok: false, response }` on failure (401 Unauthorized or 403 Forbid
 
 Auth.js config is intentionally split into two files:
 
-| File | Purpose |
-|---|---|
-| `auth.config.ts` | Edge-compatible config (no Prisma). Used by middleware for fast auth checks. |
-| `auth.ts` | Full config with Prisma adapter and JWT session callback. Used by API routes and server components. |
+| File             | Purpose                                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| `auth.config.ts` | Edge-compatible config (no Prisma). Used by middleware for fast auth checks.                        |
+| `auth.ts`        | Full config with Prisma adapter and JWT session callback. Used by API routes and server components. |
 
 This is required because Next.js middleware runs on the **Edge runtime**, which cannot import Node.js modules like `@prisma/client`.
 
@@ -176,7 +176,7 @@ All routes are prefixed with `/api`. Each route notes the minimum permission req
 
 ## Project Structure
 
-```
+```text
 app/
   (app)/          # Authenticated app shell (navbar + sidebar layout)
   (auth)/         # Unauthenticated pages (sign in)

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -28,21 +27,27 @@ export default function NewOrgPage() {
     if (openTime) body.openTimeMin = timeToMinutes(openTime);
     if (closeTime) body.closeTimeMin = timeToMinutes(closeTime);
 
-    const res = await fetch("/api/orgs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    try {
+      const res = await fetch("/api/orgs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
 
-    const data = await res.json();
-    setLoading(false);
+      if (!res.ok) {
+        setError(data?.error ?? "Something went wrong");
+        return;
+      }
 
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong");
-      return;
+      router.push("/");
+    } catch {
+      setError("Something went wrong");
+    } finally {
+      setLoading(false);
     }
-
-    router.push("/");
   }
 
   return (
