@@ -21,7 +21,7 @@ async function main() {
   await prisma.taskEligibility.deleteMany();
   await prisma.rolePermission.deleteMany();
   await prisma.membership.deleteMany();
-  await prisma.taskCycle.deleteMany();
+  await prisma.timetableTemplate.deleteMany();
   await prisma.task.deleteMany();
   await prisma.role.deleteMany();
   await prisma.organization.deleteMany(); // must precede user (ownerUserId FK)
@@ -30,17 +30,17 @@ async function main() {
   // Users
   const ownerUser = await prisma.user.create({
     data: {
-      name: "Ivan Owner",
-      email: "owner@example.com",
+      name: "Ivan",
+      email: "mystoganx2001@gmail.com",
     },
   });
 
-  const workerUser = await prisma.user.create({
-    data: {
-      name: "Wendy Worker",
-      email: "worker@example.com",
-    },
-  });
+  const [worker1, worker2, worker3, worker4] = await Promise.all([
+    prisma.user.create({ data: { name: "Jordan", email: "alt28918@gmail.com" } }),
+    prisma.user.create({ data: { name: "Casey",  email: "alt28919@gmail.com" } }),
+    prisma.user.create({ data: { name: "Riley",  email: "alt28920@gmail.com" } }),
+    prisma.user.create({ data: { name: "Morgan", email: "alt28921@gmail.com" } }),
+  ]);
 
   // Org
   const org = await prisma.organization.create({
@@ -49,6 +49,7 @@ async function main() {
       ownerUserId: ownerUser.id,
       openTimeMin: timeToMin("06:00"),
       closeTimeMin: timeToMin("18:00"),
+      timezone: "Australia/Sydney",
     },
   });
 
@@ -96,20 +97,15 @@ async function main() {
 
   // Memberships
   const ownerMembership = await prisma.membership.create({
-    data: {
-      orgId: org.id,
-      userId: ownerUser.id,
-      roleId: ownerRole.id,
-    },
+    data: { orgId: org.id, userId: ownerUser.id, roleId: ownerRole.id },
   });
 
-  const workerMembership = await prisma.membership.create({
-    data: {
-      orgId: org.id,
-      userId: workerUser.id,
-      roleId: workerRole.id,
-    },
-  });
+  const [mem1, mem2, mem3, mem4] = await Promise.all([
+    prisma.membership.create({ data: { orgId: org.id, userId: worker1.id, roleId: workerRole.id } }),
+    prisma.membership.create({ data: { orgId: org.id, userId: worker2.id, roleId: workerRole.id } }),
+    prisma.membership.create({ data: { orgId: org.id, userId: worker3.id, roleId: workerRole.id } }),
+    prisma.membership.create({ data: { orgId: org.id, userId: worker4.id, roleId: workerRole.id } }),
+  ]);
 
   // Tasks
   const tasks = await Promise.all([
@@ -160,29 +156,26 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // Cycle
-  const cycle = await prisma.taskCycle.create({
+  // Timetable template
+  const template = await prisma.timetableTemplate.create({
     data: {
       orgId: org.id,
-      cycleDays: 7,
+      title: "Week 1",
+      templateDays: 7,
     },
   });
 
-  // Instances (example)
-  const now = new Date();
-  const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
-  const inTwoHours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-
+  // Template instances — positions are cycle-relative (dayOffset + startTimeMin)
   const instance1 = await prisma.taskInstance.create({
     data: {
       orgId: org.id,
       taskId: tasks[0].id,
-      cycleId: cycle.id,
+      templateId: template.id,
       status: TaskInstanceStatus.TODO,
-      scheduledStartAt: inOneHour,
-      scheduledEndAt: inTwoHours,
+      dayOffset: 1,
+      startTimeMin: timeToMin("06:00"),
       assignees: {
-        create: [{ membershipId: workerMembership.id }],
+        create: [{ membershipId: mem1.id }, { membershipId: mem2.id }],
       },
     },
   });
@@ -191,10 +184,12 @@ async function main() {
     data: {
       orgId: org.id,
       taskId: tasks[1].id,
-      cycleId: cycle.id,
+      templateId: template.id,
       status: TaskInstanceStatus.TODO,
+      dayOffset: 3,
+      startTimeMin: timeToMin("14:00"),
       assignees: {
-        create: [{ membershipId: workerMembership.id }],
+        create: [{ membershipId: mem3.id }],
       },
     },
   });
@@ -203,15 +198,64 @@ async function main() {
     data: {
       orgId: org.id,
       taskId: tasks[2].id,
-      cycleId: cycle.id,
+      templateId: template.id,
       status: TaskInstanceStatus.TODO,
-      scheduledStartAt: new Date(now.getTime() + 11 * 60 * 60 * 1000), // ~5pm
-      scheduledEndAt: new Date(
-        now.getTime() + 11 * 60 * 60 * 1000 + 40 * 60 * 1000,
-      ),
+      dayOffset: 7,
+      startTimeMin: timeToMin("17:00"),
       assignees: {
-        create: [{ membershipId: workerMembership.id }],
+        create: [{ membershipId: mem4.id }],
       },
+    },
+  });
+
+  // Live scheduled instances (this week, no template — shown on timetable calendar)
+  const monday = (() => {
+    const d = new Date();
+    const day = d.getDay(); // 0=Sun, 1=Mon
+    const diff = (day === 0 ? -6 : 1 - day);
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+
+  const atTime = (dayIndex: number, hhmm: string) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    const d = new Date(monday);
+    d.setDate(d.getDate() + dayIndex);
+    d.setHours(h, m, 0, 0);
+    return d;
+  };
+
+  const live1 = await prisma.taskInstance.create({
+    data: {
+      orgId: org.id,
+      taskId: tasks[0].id,
+      status: TaskInstanceStatus.TODO,
+      scheduledStartAt: atTime(0, "06:00"),
+      scheduledEndAt:   atTime(0, "06:30"),
+      assignees: { create: [{ membershipId: mem1.id }] },
+    },
+  });
+
+  const live2 = await prisma.taskInstance.create({
+    data: {
+      orgId: org.id,
+      taskId: tasks[1].id,
+      status: TaskInstanceStatus.IN_PROGRESS,
+      scheduledStartAt: atTime(2, "14:00"),
+      scheduledEndAt:   atTime(2, "14:45"),
+      assignees: { create: [{ membershipId: mem3.id }] },
+    },
+  });
+
+  const live3 = await prisma.taskInstance.create({
+    data: {
+      orgId: org.id,
+      taskId: tasks[2].id,
+      status: TaskInstanceStatus.TODO,
+      scheduledStartAt: atTime(4, "17:00"),
+      scheduledEndAt:   atTime(4, "17:40"),
+      assignees: { create: [{ membershipId: mem4.id }] },
     },
   });
 
@@ -219,13 +263,14 @@ async function main() {
   console.log({
     orgId: org.id,
     ownerUserId: ownerUser.id,
-    workerUserId: workerUser.id,
+    workerUserIds: [worker1.id, worker2.id, worker3.id, worker4.id],
     ownerMembershipId: ownerMembership.id,
-    workerMembershipId: workerMembership.id,
+    workerMembershipIds: [mem1.id, mem2.id, mem3.id, mem4.id],
     roleIds: { ownerRoleId: ownerRole.id, workerRoleId: workerRole.id },
     taskIds: tasks.map((t) => t.id),
-    cycleId: cycle.id,
-    instanceIds: [instance1.id, instance2.id, instance3.id],
+    templateId: template.id,
+    templateInstanceIds: [instance1.id, instance2.id, instance3.id],
+    liveInstanceIds: [live1.id, live2.id, live3.id],
   });
 }
 

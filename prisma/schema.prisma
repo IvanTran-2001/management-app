@@ -37,11 +37,12 @@ model Organization {
   ownerUserId  String  
   openTimeMin  Int?     // minutes from midnight (0-1439)
   closeTimeMin Int?
+  timezone     String   @default("Australia/Sydney")
 
   memberships  Membership[]
   roles        Role[]
   tasks        Task[]
-  cycles       TaskCycle[]
+  timetableTemplates TimetableTemplate[]
   taskInstances TaskInstance[]
   user       User   @relation(fields: [ownerUserId], references: [id])
 
@@ -218,11 +219,14 @@ model TaskEligibility {
   @@index([roleId])
 }
 
-model TaskCycle {
+model TimetableTemplate {
   id      String  @id @default(cuid())
   orgId   String
-  // planning horizon in days (weekly/monthly/custom). allow null if "system chooses"
-  cycleDays Int?
+  title   String
+  // planning horizon in days (weekly/monthly/custom)
+  templateDays Int  @default(7)
+  // when this template becomes active (null = draft)
+  effectiveFrom DateTime?
 
   // later: versioning fields like effectiveFrom/effectiveTo
   org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -239,11 +243,15 @@ model TaskInstance {
   id        String   @id @default(cuid())
   orgId     String
   taskId    String
-  cycleId   String?
+  templateId String?
 
   status    TaskInstanceStatus @default(TODO)
 
-  // scheduling for this instance
+  // Template-relative position (set when templateId is set)
+  dayOffset    Int?   // which day in the cycle (1..templateDays)
+  startTimeMin Int?   // local minutes from midnight (0..1439)
+
+  // Real scheduled times (set when applied to a live week)
   scheduledStartAt DateTime?
   scheduledEndAt   DateTime?
 
@@ -252,7 +260,7 @@ model TaskInstance {
 
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   task      Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  cycle     TaskCycle?   @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  template  TimetableTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   assignees TaskInstanceAssignee[]
 
@@ -261,7 +269,7 @@ model TaskInstance {
 
   @@index([orgId])
   @@index([taskId])
-  @@index([cycleId])
+  @@index([templateId])
   @@index([status])
 }
 

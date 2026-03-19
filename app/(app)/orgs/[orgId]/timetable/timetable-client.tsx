@@ -428,6 +428,7 @@ interface TimetableClientProps {
   openTimeMin: number;
   closeTimeMin: number;
   mode: "calendar" | "simple";
+  selectedTemplateId: string | null;
 }
 
 export function TimetableClient({
@@ -437,13 +438,16 @@ export function TimetableClient({
   openTimeMin,
   closeTimeMin,
   mode,
+  selectedTemplateId,
 }: TimetableClientProps) {
   const prevWeek = addDays(weekStart, -7);
   const nextWeek = addDays(weekStart, 7);
   const dateRangeLabel = formatDateRange(weekStart);
 
-  const makeHref = (w: string, m: string) =>
-    `/orgs/${orgId}/timetable?week=${w}&mode=${m}`;
+  const makeHref = (w: string, m: string) => {
+    const t = selectedTemplateId ? `&template=${selectedTemplateId}` : "";
+    return `/orgs/${orgId}/timetable?week=${w}&mode=${m}${t}`;
+  };
 
   return (
     <div className="flex flex-col gap-4">
