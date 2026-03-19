@@ -10,7 +10,8 @@ import Google from "next-auth/providers/google";
  * For the full config with Prisma adapter and session callbacks, see auth.ts.
  */
 export const authConfig: NextAuthConfig = {
-  providers: [Google],
+  // Remove after testing - allows linking any Google account, even if the email matches an existing user in the DB
+  providers: [Google({ allowDangerousEmailAccountLinking: true })],
   pages: {
     signIn: "/signin",
   },

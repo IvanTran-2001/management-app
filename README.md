@@ -59,7 +59,7 @@ Provider: PostgreSQL (Supabase), managed via Prisma ORM.
 | `RolePermission`       | Grants a specific `OrgPermission` enum value to a `Role`.                               |
 | `Task`                 | A reusable task template belonging to an org (title, duration, recurrence constraints). |
 | `TaskEligibility`      | Links a `Task` to a `Role`, defining which roles can be assigned to it.                 |
-| `TaskCycle`            | A planning horizon (e.g. weekly) that groups a set of `TaskInstance`s.                  |
+| `TimetableTemplate`    | A planning horizon/template (e.g. weekly) that groups a set of `TaskInstance`s.         |
 | `TaskInstance`         | A scheduled occurrence of a `Task`, with status, scheduled times, and assignees.        |
 | `TaskInstanceAssignee` | Links a `Membership` to a `TaskInstance` (many-to-many).                                |
 
