@@ -59,7 +59,7 @@ Provider: PostgreSQL (Supabase), managed via Prisma ORM.
 | `RolePermission`       | Grants a specific `OrgPermission` enum value to a `Role`.                               |
 | `Task`                 | A reusable task template belonging to an org (title, duration, recurrence constraints). |
 | `TaskEligibility`      | Links a `Task` to a `Role`, defining which roles can be assigned to it.                 |
-| `TaskCycle`            | A planning horizon (e.g. weekly) that groups a set of `TaskInstance`s.                  |
+| `TimetableTemplate`    | A planning horizon/template (e.g. weekly) that groups a set of `TaskInstance`s.         |
 | `TaskInstance`         | A scheduled occurrence of a `Task`, with status, scheduled times, and assignees.        |
 | `TaskInstanceAssignee` | Links a `Membership` to a `TaskInstance` (many-to-many).                                |
 
@@ -238,18 +238,18 @@ Server Actions use `revalidatePath` to invalidate the Next.js cache so server-re
 
 ## Pages
 
-| Route                           | Guard                              | Description                    |
-| ------------------------------- | ---------------------------------- | ------------------------------ |
-| `/`                             | Signed in                          | Home — authenticated app shell |
-| `/signin`                       | —                                  | Google OAuth sign-in           |
-| `/orgs/new`                     | Signed in                          | Create a new organization      |
-| `/orgs/[orgId]`                 | `requireOrgMember`                 | Org overview (placeholder)     |
-| `/orgs/[orgId]/tasks`           | `requireOrgMember`                 | Task template list             |
-| `/orgs/[orgId]/tasks/new`       | `requireOrgPermission TASK_CREATE` | Create a new task template     |
-| `/orgs/[orgId]/memberships`     | `requireOrgMember`                 | Member list                    |
-| `/orgs/[orgId]/memberships/new` | `requireOrgPermission ORG_MANAGE`  | Invite a new member by email   |
-| `/orgs/[orgId]/timetable`       | `requireOrgMember`                 | Timetable — calendar or simple mode, week navigation |
-| `/orgs/[orgId]/timetable/templates` | `requireOrgMember`             | Timetable templates (coming soon) |
+| Route                               | Guard                              | Description                                          |
+| ----------------------------------- | ---------------------------------- | ---------------------------------------------------- |
+| `/`                                 | Signed in                          | Home — authenticated app shell                       |
+| `/signin`                           | —                                  | Google OAuth sign-in                                 |
+| `/orgs/new`                         | Signed in                          | Create a new organization                            |
+| `/orgs/[orgId]`                     | `requireOrgMember`                 | Org overview (placeholder)                           |
+| `/orgs/[orgId]/tasks`               | `requireOrgMember`                 | Task template list                                   |
+| `/orgs/[orgId]/tasks/new`           | `requireOrgPermission TASK_CREATE` | Create a new task template                           |
+| `/orgs/[orgId]/memberships`         | `requireOrgMember`                 | Member list                                          |
+| `/orgs/[orgId]/memberships/new`     | `requireOrgPermission ORG_MANAGE`  | Invite a new member by email                         |
+| `/orgs/[orgId]/timetable`           | `requireOrgMember`                 | Timetable — calendar or simple mode, week navigation |
+| `/orgs/[orgId]/timetable/templates` | `requireOrgMember`                 | Timetable templates (coming soon)                    |
 
 All `/orgs/[orgId]/*` pages are guarded by at least `requireOrgMember` — users not in the org are redirected to `/`.
 
@@ -257,7 +257,7 @@ All `/orgs/[orgId]/*` pages are guarded by at least `requireOrgMember` — users
 
 - **Sidebar active state** — uses prefix matching so nested pages (e.g. `/tasks/new`) correctly highlight the parent nav item. The Org Overview item uses exact matching to avoid lighting up on every org page.
 - **Form validation** — server-action errors are rendered inline next to each field with `aria-invalid` / `aria-describedby` for accessibility, plus a Sonner toast summary.
-- **Timetable** — the server page fetches the week's instances (scoped to `scheduledStartAt` in `[monday, monday+7)`) and renders the Calendar/Simple mode links; the client component handles the interactive timetable UI plus Prev/Next week navigation via `?week=` and `?mode=` search params. Calendar view uses absolute positioning to render task blocks by time; overlapping tasks are assigned side-by-side columns. Status colours: gray = TODO, amber = IN\_PROGRESS, green = DONE, red = SKIPPED.
+- **Timetable** — the server page fetches the week's instances (scoped to `scheduledStartAt` in `[monday, monday+7)`) and renders the Calendar/Simple mode links; the client component handles the interactive timetable UI plus Prev/Next week navigation via `?week=` and `?mode=` search params. Calendar view uses absolute positioning to render task blocks by time; overlapping tasks are assigned side-by-side columns. Status colours: gray = TODO, amber = IN_PROGRESS, green = DONE, red = SKIPPED.
 
 ## Status
 

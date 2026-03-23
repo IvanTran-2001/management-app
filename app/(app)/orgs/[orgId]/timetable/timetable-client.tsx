@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 export type ClientTimetableInstance = {
   id: string;
   taskId: string;
+  /** True for template-projected instances — id is synthetic, not a DB record. Do not use for mutations. */
+  isProjected?: boolean;
   status: "TODO" | "IN_PROGRESS" | "DONE" | "SKIPPED";
   scheduledStartAt: string | null;
   scheduledEndAt: string | null;
@@ -38,8 +40,18 @@ const HOUR_HEIGHT = 64; // px per hour
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 const STATUS_LABELS: Record<ClientTimetableInstance["status"], string> = {
@@ -89,30 +101,44 @@ function groupByDate(
 
 function statusBlockClass(status: ClientTimetableInstance["status"]): string {
   switch (status) {
-    case "TODO":        return "bg-slate-300/80 text-slate-800 border-slate-400";
-    case "IN_PROGRESS": return "bg-amber-300/80 text-amber-900 border-amber-400";
-    case "DONE":        return "bg-green-300/80 text-green-900 border-green-400";
-    case "SKIPPED":     return "bg-red-300/80 text-red-900 border-red-400";
+    case "TODO":
+      return "bg-slate-300/80 text-slate-800 border-slate-400";
+    case "IN_PROGRESS":
+      return "bg-amber-300/80 text-amber-900 border-amber-400";
+    case "DONE":
+      return "bg-green-300/80 text-green-900 border-green-400";
+    case "SKIPPED":
+      return "bg-red-300/80 text-red-900 border-red-400";
   }
 }
 
 function statusBadgeClass(status: string): string {
   switch (status) {
-    case "TODO":        return "bg-slate-200 text-slate-600";
-    case "IN_PROGRESS": return "bg-amber-100 text-amber-700";
-    case "DONE":        return "bg-green-100 text-green-700";
-    case "SKIPPED":     return "bg-red-100 text-red-700";
-    default:            return "bg-slate-100 text-slate-600";
+    case "TODO":
+      return "bg-slate-200 text-slate-600";
+    case "IN_PROGRESS":
+      return "bg-amber-100 text-amber-700";
+    case "DONE":
+      return "bg-green-100 text-green-700";
+    case "SKIPPED":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-slate-100 text-slate-600";
   }
 }
 
 function statusDotClass(status: string): string {
   switch (status) {
-    case "TODO":        return "bg-slate-400";
-    case "IN_PROGRESS": return "bg-amber-500";
-    case "DONE":        return "bg-green-500";
-    case "SKIPPED":     return "bg-red-500";
-    default:            return "bg-slate-400";
+    case "TODO":
+      return "bg-slate-400";
+    case "IN_PROGRESS":
+      return "bg-amber-500";
+    case "DONE":
+      return "bg-green-500";
+    case "SKIPPED":
+      return "bg-red-500";
+    default:
+      return "bg-slate-400";
   }
 }
 
@@ -145,7 +171,9 @@ function assignColumns(
   const colEnds: number[] = [];
 
   const positioned = sorted.map((inst) => {
-    const start = inst.scheduledStartAt ? new Date(inst.scheduledStartAt) : null;
+    const start = inst.scheduledStartAt
+      ? new Date(inst.scheduledStartAt)
+      : null;
     const startMin = start
       ? start.getUTCHours() * 60 + start.getUTCMinutes()
       : openTimeMin;
@@ -185,7 +213,10 @@ function CalendarView({
 }: CalendarViewProps) {
   const startHour = Math.floor(openTimeMin / 60);
   const endHour = Math.ceil(closeTimeMin / 60);
-  const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
+  const hours = Array.from(
+    { length: endHour - startHour },
+    (_, i) => startHour + i,
+  );
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const totalHeight = hours.length * HOUR_HEIGHT;
   const byDate = groupByDate(instances);
@@ -219,7 +250,10 @@ function CalendarView({
       </div>
 
       {/* Scrollable time grid */}
-      <div className="overflow-y-auto bg-purple-50/40" style={{ maxHeight: 520 }}>
+      <div
+        className="overflow-y-auto bg-purple-50/40"
+        style={{ maxHeight: 520 }}
+      >
         <div className="flex" style={{ height: totalHeight }}>
           {/* Hour-label gutter */}
           <div className="w-14 shrink-0 border-r border-purple-200">
@@ -253,7 +287,10 @@ function CalendarView({
                   <div
                     key={h}
                     className="absolute inset-x-0 border-b border-purple-200/50"
-                    style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+                    style={{
+                      top: (h - startHour) * HOUR_HEIGHT,
+                      height: HOUR_HEIGHT,
+                    }}
                   />
                 ))}
 
@@ -288,9 +325,13 @@ function CalendarView({
                       }}
                       title={`${inst.task.title} — ${inst.task.durationMin} min`}
                     >
-                      <div className="font-semibold truncate">{inst.task.title}</div>
+                      <div className="font-semibold truncate">
+                        {inst.task.title}
+                      </div>
                       {heightPx >= 36 && assigneeNames && (
-                        <div className="truncate opacity-80">{assigneeNames}</div>
+                        <div className="truncate opacity-80">
+                          {assigneeNames}
+                        </div>
                       )}
                       {heightPx >= 52 && (
                         <div className="opacity-60 text-[10px]">
@@ -357,10 +398,16 @@ function SimpleView({ instances, weekStart }: SimpleViewProps) {
                 <thead className="border-b bg-muted/20">
                   <tr className="text-xs text-muted-foreground uppercase tracking-wide">
                     <th className="px-3 py-1.5 text-left font-medium w-8">#</th>
-                    <th className="px-3 py-1.5 text-left font-medium">Status</th>
+                    <th className="px-3 py-1.5 text-left font-medium">
+                      Status
+                    </th>
                     <th className="px-3 py-1.5 text-left font-medium">Task</th>
-                    <th className="px-3 py-1.5 text-left font-medium">Duration</th>
-                    <th className="px-3 py-1.5 text-left font-medium">Assigned To</th>
+                    <th className="px-3 py-1.5 text-left font-medium">
+                      Duration
+                    </th>
+                    <th className="px-3 py-1.5 text-left font-medium">
+                      Assigned To
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -428,6 +475,7 @@ interface TimetableClientProps {
   openTimeMin: number;
   closeTimeMin: number;
   mode: "calendar" | "simple";
+  selectedTemplateId: string | null;
 }
 
 export function TimetableClient({
@@ -437,13 +485,16 @@ export function TimetableClient({
   openTimeMin,
   closeTimeMin,
   mode,
+  selectedTemplateId,
 }: TimetableClientProps) {
   const prevWeek = addDays(weekStart, -7);
   const nextWeek = addDays(weekStart, 7);
   const dateRangeLabel = formatDateRange(weekStart);
 
-  const makeHref = (w: string, m: string) =>
-    `/orgs/${orgId}/timetable?week=${w}&mode=${m}`;
+  const makeHref = (w: string, m: string) => {
+    const t = selectedTemplateId ? `&template=${selectedTemplateId}` : "";
+    return `/orgs/${orgId}/timetable?week=${w}&mode=${m}${t}`;
+  };
 
   return (
     <div className="flex flex-col gap-4">
