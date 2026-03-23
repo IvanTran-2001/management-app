@@ -136,13 +136,15 @@ function EditPopup({
       available.length > 0 &&
       !available.find((m) => m.id === addMembershipId)
     ) {
-     (async () => setAddMembershipId(available[0].id))();
+      (async () => setAddMembershipId(available[0].id))();
     }
   }, [localAssignees, available, addMembershipId]);
 
   const parsedStartTime = hhmmToMin(startTime);
   const endMin =
-    parsedStartTime == null ? null : parsedStartTime + instance.task.durationMin;
+    parsedStartTime == null
+      ? null
+      : parsedStartTime + instance.task.durationMin;
 
   function handleAddAssignee() {
     const membership = memberships.find((m) => m.id === addMembershipId);
@@ -210,7 +212,8 @@ function EditPopup({
             className="h-8 w-32 text-sm"
           />
           <p className="text-xs text-muted-foreground">
-            {startTime} → {endMin == null ? "--:--" : minToHHMM(endMin)} · {instance.task.durationMin} min
+            {startTime} → {endMin == null ? "--:--" : minToHHMM(endMin)} ·{" "}
+            {instance.task.durationMin} min
           </p>
         </div>
 
@@ -438,9 +441,13 @@ export function TemplateEditorClient({
   function handleEditSave(startTimeMin: number) {
     if (!editingInstance) return;
     startT(async () => {
-      const result = await updateTemplateInstanceAction(orgId, editingInstance.id, {
-        startTimeMin,
-      });
+      const result = await updateTemplateInstanceAction(
+        orgId,
+        editingInstance.id,
+        {
+          startTimeMin,
+        },
+      );
       if (!result.ok) return;
       setEditingInstance(null);
       router.refresh();
@@ -450,7 +457,10 @@ export function TemplateEditorClient({
   function handleEditRemove() {
     if (!editingInstance) return;
     startT(async () => {
-      const result = await removeTemplateInstanceAction(orgId, editingInstance.id);
+      const result = await removeTemplateInstanceAction(
+        orgId,
+        editingInstance.id,
+      );
       if (!result.ok) return;
       setEditingInstance(null);
       router.refresh();
