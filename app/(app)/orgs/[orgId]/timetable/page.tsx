@@ -146,7 +146,10 @@ function projectTemplateToWeek(
       // Resolve each day's local midnight independently via localMidnightUTC so
       // that startTimeMin (minutes from local midnight) lands at the right UTC
       // instant even across a DST transition during the week.
-      const dayMs = localMidnightUTC(addCalendarDays(weekStart, weekdayIndex), orgTz);
+      const dayMs = localMidnightUTC(
+        addCalendarDays(weekStart, weekdayIndex),
+        orgTz,
+      );
       const startMs = dayMs + inst.startTimeMin * 60 * 1000;
       const endMs = startMs + inst.task.durationMin * 60 * 1000;
 
@@ -184,14 +187,19 @@ export default async function TimetablePage({
   searchParams,
 }: {
   params: Promise<{ orgId: string }>;
-  searchParams: Promise<{ week?: string; mode?: string; template?: string }>;
+  searchParams: Promise<{
+    week?: string | string[];
+    mode?: string | string[];
+    template?: string | string[];
+  }>;
 }) {
   const { orgId } = await params;
-  const {
-    week: weekParam,
-    mode: modeParam,
-    template: templateParam,
-  } = await searchParams;
+  const first = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+  const rawSearchParams = await searchParams;
+  const weekParam = first(rawSearchParams.week);
+  const modeParam = first(rawSearchParams.mode);
+  const templateParam = first(rawSearchParams.template);
 
   const authz = await requireOrgMember(orgId);
   if (!authz.ok) redirect("/");
