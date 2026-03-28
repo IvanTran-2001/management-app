@@ -49,9 +49,12 @@ export const NavBar = async () => {
       {/* Left: sidebar toggle, app title, org switcher */}
       <div className="flex items-center gap-2">
         <SidebarTrigger />
-        <Button asChild size="sm">
-          <Link href="/">App</Link>
-        </Button>
+        <Link
+          href="/"
+          className="text-sm font-bold tracking-tight select-none px-1"
+        >
+          Friend<span className="text-primary">Chise</span>
+        </Link>
         <OrgSwitcher orgs={orgs} />
       </div>
 

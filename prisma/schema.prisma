@@ -123,7 +123,8 @@ model Organization {
   // Location
   address       String?
 
-  // Operating hours (minutes from midnight 0-1439)
+  // Operating schedule
+  operatingDays String[] // ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
   openTimeMin   Int?
   closeTimeMin  Int?
   timezone      String   @default("Australia/Sydney")
@@ -387,7 +388,7 @@ model TemplateEntry {
   template      Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   taskId        String
-  task          Task     @relation(fields: [taskId], references: [id])
+  task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   // Overridable per entry
   priority      Int      @default(0)
