@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CalendarDays, Plus } from "lucide-react";
-import { requireOrgMember } from "@/lib/authz";
+import { requireOrgMemberPage } from "@/lib/authz";
 import { getTimetableTemplates } from "@/lib/services/templates";
 import { Toolbar } from "@/components/layout/toolbar";
 import { Button } from "@/components/ui/button";
@@ -12,8 +11,7 @@ export default async function TemplatesPage({
   params: Promise<{ orgId: string }>;
 }) {
   const { orgId } = await params;
-  const authz = await requireOrgMember(orgId);
-  if (!authz.ok) redirect("/");
+  await requireOrgMemberPage(orgId);
 
   const templates = await getTimetableTemplates(orgId);
 

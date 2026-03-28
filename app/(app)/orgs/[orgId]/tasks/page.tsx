@@ -1,12 +1,11 @@
 import { getTasks } from "@/lib/services/tasks";
-import { requireOrgMember } from "@/lib/authz";
-import { redirect } from "next/navigation";
+import { requireOrgMemberPage } from "@/lib/authz";
 import { Toolbar } from "@/components/layout/toolbar";
 
 /**
  * Tasks list page — server component.
  *
- * Guards access with `requireOrgMember`; redirects to `/` if the caller is not
+ * Guards access with `requireOrgMemberPage`; redirects to `/` if the caller is not
  * a member. Fetches and renders all tasks for the org with a toolbar action
  * to create a new task.
  */
@@ -17,8 +16,7 @@ const TasksPage = async ({
 }) => {
   const { orgId } = await params;
 
-  const authz = await requireOrgMember(orgId);
-  if (!authz.ok) redirect("/");
+  await requireOrgMemberPage(orgId);
 
   const tasks = await getTasks(orgId);
 

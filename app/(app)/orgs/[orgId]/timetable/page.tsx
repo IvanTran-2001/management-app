@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { requireOrgMember } from "@/lib/authz";
+import { requireOrgMemberPage } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import {
   getTaskInstancesForTimetable,
@@ -189,8 +188,7 @@ export default async function TimetablePage({
   const modeParam = first(rawSearchParams.mode);
   const templateParam = first(rawSearchParams.template);
 
-  const authz = await requireOrgMember(orgId);
-  if (!authz.ok) redirect("/");
+  await requireOrgMemberPage(orgId);
 
   // Fetch org data first so the week window and projection use org-local time.
   const orgMeta = await prisma.organization.findUnique({

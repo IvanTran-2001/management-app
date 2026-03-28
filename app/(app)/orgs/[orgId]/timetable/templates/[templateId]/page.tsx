@@ -1,7 +1,7 @@
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { requireOrgMember } from "@/lib/authz";
+import { requireOrgMemberPage } from "@/lib/authz";
 import { getTimetableTemplate } from "@/lib/services/templates";
 import { prisma } from "@/lib/prisma";
 import { Toolbar } from "@/components/layout/toolbar";
@@ -19,8 +19,7 @@ export default async function TemplateEditorPage({
 }) {
   const { orgId, templateId } = await params;
 
-  const authz = await requireOrgMember(orgId);
-  if (!authz.ok) redirect("/");
+  await requireOrgMemberPage(orgId);
 
   const [template, org, rawTasks, rawMemberships] = await Promise.all([
     getTimetableTemplate(orgId, templateId),

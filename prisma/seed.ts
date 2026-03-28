@@ -109,6 +109,7 @@ async function main() {
       openTimeMin: timeToMin("06:00"),
       closeTimeMin: timeToMin("18:00"),
       timezone: "Australia/Sydney",
+      operatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
     },
   });
 
@@ -306,6 +307,7 @@ async function main() {
       openTimeMin: timeToMin("07:00"),
       closeTimeMin: timeToMin("17:00"),
       timezone: "Australia/Sydney",
+      operatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
     },
   });
 
@@ -503,6 +505,7 @@ async function main() {
       openTimeMin: timeToMin("05:00"),
       closeTimeMin: timeToMin("14:00"),
       timezone: "Australia/Sydney",
+      operatingDays: ["mon", "tue", "wed", "thu", "fri", "sat"],
     },
   });
 
