@@ -111,6 +111,7 @@ function FranchiseeActions({
         size="icon"
         variant="ghost"
         className="h-7 w-7"
+        aria-label={`Open actions for ${franchisee.name}`}
         onClick={() => { setOpen((v) => !v); setMode("menu"); setError(""); }}
       >
         <MoreHorizontal className="h-4 w-4" />
@@ -223,6 +224,7 @@ function TokenActions({
         size="icon"
         variant="ghost"
         className="h-7 w-7"
+        aria-label={`Open token actions for ${token.invitedEmail}`}
         onClick={() => { setOpen((v) => !v); setMode("menu"); setError(""); }}
       >
         <MoreHorizontal className="h-4 w-4" />
@@ -285,13 +287,15 @@ export function FranchiseeClient({
   const [tokenError, setTokenError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const handleGenerateToken = () => {
-    setTokenError("");
-    startTransition(async () => {
-      const res = await generateFranchiseToken(orgId, email);
-      if (res.ok) setEmail("");
-      else setTokenError(res.error);
-    });
+   const handleGenerateToken = () => {
+   const trimmedEmail = email.trim();
+    if (isPending || !trimmedEmail) return;
+     setTokenError("");
+     startTransition(async () => {
+      const res = await generateFranchiseToken(orgId, trimmedEmail);
+       if (res.ok) setEmail("");
+       else setTokenError(res.error);
+     });
   };
 
   return (
@@ -324,7 +328,7 @@ export function FranchiseeClient({
                     <td className="px-4 py-2 text-muted-foreground">{f.address ?? "—"}</td>
                     <td className="px-4 py-2">{f.owner.name ?? f.owner.email ?? "—"}</td>
                     <td className="px-4 py-2 text-muted-foreground">
-                      {new Date(f.createdAt).toLocaleDateString("en-AU")}
+                      {new Date(f.createdAt).toLocaleDateString("en-AU", { timeZone: "UTC" })}
                     </td>
                     <td className="px-4 py-2 text-right">
                       <FranchiseeActions orgId={orgId} franchisee={f} />
@@ -348,7 +352,12 @@ export function FranchiseeClient({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="max-w-xs"
-            onKeyDown={(e) => e.key === "Enter" && handleGenerateToken()}
+           onKeyDown={(e) => {
+             if (e.key === "Enter" && !e.repeat) {
+               e.preventDefault();
+               handleGenerateToken();
+             }
+           }}
           />
           <Button onClick={handleGenerateToken} disabled={isPending || !email.trim()}>
             {isPending ? "Generating..." : "Generate Token"}
@@ -386,7 +395,7 @@ export function FranchiseeClient({
                         {t.token}
                       </td>
                       <td className="px-4 py-2 text-muted-foreground">
-                        {new Date(t.expiresAt).toLocaleDateString("en-AU")}
+                        {new Date(f.createdAt).toLocaleDateString("en-AU", { timeZone: "UTC" })}
                       </td>
                       <td className="px-4 py-2">
                         {used ? (
