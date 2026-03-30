@@ -1,6 +1,6 @@
 # Chore / Practice Management System
 
-A role-based chore/practice management system for organisations to manage recurring tasks, schedules, and team members. Supports franchise hierarchies where a parent org can spawn and manage child organisations.
+A role-based chore/practice management system for organizations to manage recurring tasks, schedules, and team members. Supports franchise hierarchies where a parent org can spawn and manage child organisations.
 
 ## Tech Stack
 

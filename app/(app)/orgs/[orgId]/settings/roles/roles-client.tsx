@@ -59,12 +59,17 @@ function RoleRowActions({
 
   function handleDelete() {
     startTransition(async () => {
-      const result = await deleteRoleAction(orgId, role.id);
-      if (result.ok) {
-        toast.success(`Role "${role.name}" deleted.`);
-      } else {
-        toast.error(result.error);
+      try {
+        const result = await deleteRoleAction(orgId, role.id);
+        if (result.ok) {
+          toast.success(`Role "${role.name}" deleted.`);
+        } else {
+          toast.error(result.error);
+        }
+      } catch {
+        toast.error("Failed to delete role. Please try again.");
       }
+    });
     });
   }
 
