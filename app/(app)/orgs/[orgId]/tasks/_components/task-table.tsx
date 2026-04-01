@@ -225,9 +225,9 @@ export function TaskTable({ orgId, tasks, roles, canManageTasks }: TaskTableProp
                   tabIndex={0}
                   onClick={() => router.push(`/orgs/${orgId}/tasks/${task.id}`)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      router.push(`/orgs/${orgId}/tasks/${task.id}`);
-                    }
+                    if (e.key !== "Enter") return;
+                    if (e.target !== e.currentTarget) return;
+                    router.push(`/orgs/${orgId}/tasks/${task.id}`);
                   }}
                   className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                 >
