@@ -3,12 +3,12 @@
 /**
  * Server Actions for task management.
  *
- * createTaskAction — used by the create-task form. Parses FormData, validates with
- * `createTaskSchema`, delegates to the task service, then revalidates the task list
- * and redirects back to it.
- *
- * deleteTaskAction — called by the TaskTable row menu. Requires MANAGE_TASKS.
- * Delegates to the task service (scoped delete) and revalidates the task list.
+ * createTaskAction    — create-task form; parses FormData, validates with `createTaskSchema`,
+ *                       delegates to the task service, then revalidates and redirects.
+ * updateTaskAction    — edit-task form; same pipeline but updates an existing task.
+ * deleteTaskAction    — task-table row menu; scoped delete, requires MANAGE_TASKS.
+ * addEligibilityAction    — toggle a role onto a task's eligibility list.
+ * removeEligibilityAction — toggle a role off a task's eligibility list.
  */
 
 import { PermissionAction } from "@prisma/client";
@@ -30,6 +30,15 @@ export type CreateTaskFormState =
   | { ok: true }
   | null;
 
+/**
+ * Creates a new task definition for an org and sets its initial role eligibility.
+ *
+ * Auth: caller must hold `MANAGE_TASKS` in this org.
+ * Parses raw `FormData` (all values are strings from the browser) converting
+ * numeric fields before Zod validation. Eligibility role IDs are taken from
+ * repeated `"roleIds"` entries on the form. On success, revalidates the task
+ * list and redirects there.
+ */
 export async function createTaskAction(
   orgId: string,
   _prev: CreateTaskFormState,
@@ -108,6 +117,13 @@ export type TaskFormState =
   | { ok: true }
   | null;
 
+/**
+ * Updates a task definition's fields and eligibility for an org.
+ *
+ * Auth: caller must hold `MANAGE_TASKS` in this org.
+ * Parses raw `FormData`, validates with `updateTaskSchema`, then delegates to
+ * `updateTask`. On success, revalidates both the task list and the edit page.
+ */
 export async function updateTaskAction(
   orgId: string,
   taskId: string,
@@ -153,6 +169,10 @@ export async function updateTaskAction(
   return { ok: true };
 }
 
+/**
+ * Adds a role to a task's eligibility list (upsert — safe if already present).
+ * Requires `MANAGE_TASKS` permission.
+ */
 export async function addEligibilityAction(
   orgId: string,
   taskId: string,
@@ -170,6 +190,10 @@ export async function addEligibilityAction(
   return { ok: true };
 }
 
+/**
+ * Removes a role from a task's eligibility list.
+ * Requires `MANAGE_TASKS` permission.
+ */
 export async function removeEligibilityAction(
   orgId: string,
   taskId: string,

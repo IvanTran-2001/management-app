@@ -17,7 +17,10 @@ type DragData<TInstanceId extends string = string> =
 export type DragDataRef<TInstanceId extends string = string> =
   React.MutableRefObject<DragData<TInstanceId> | null>;
 
-interface TimeGridProps<TInstance extends GridInstance, TColumnKey extends string> {
+interface TimeGridProps<
+  TInstance extends GridInstance,
+  TColumnKey extends string,
+> {
   /** Each column key (e.g. a date string or "0", "1", "2" day index). */
   columns: TColumnKey[];
 
@@ -74,7 +77,10 @@ interface TimeGridProps<TInstance extends GridInstance, TColumnKey extends strin
  * so this component knows nothing about dates vs template day indices,
  * or status vs no-status entries.
  */
-export function TimeGrid<TInstance extends GridInstance, TColumnKey extends string>({
+export function TimeGrid<
+  TInstance extends GridInstance,
+  TColumnKey extends string,
+>({
   columns,
   instances,
   getColumnKey,
@@ -106,30 +112,47 @@ export function TimeGrid<TInstance extends GridInstance, TColumnKey extends stri
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!scrollRef.current) return;
-    const scrollTo = Math.max(0, Math.floor(initialScrollMin / 60) * HOUR_HEIGHT - HOUR_HEIGHT / 2);
+    const scrollTo = Math.max(
+      0,
+      Math.floor(initialScrollMin / 60) * HOUR_HEIGHT - HOUR_HEIGHT / 2,
+    );
     scrollRef.current.scrollTop = scrollTo;
     // Intentionally only runs when the column set changes (week/page nav)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columns.join(",")]);
 
-  function handleColumnDragOver(e: React.DragEvent<HTMLDivElement>, col: TColumnKey) {
+  function handleColumnDragOver(
+    e: React.DragEvent<HTMLDivElement>,
+    col: TColumnKey,
+  ) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = dragDataRef.current?.type === "move" ? "move" : "copy";
-    const offsetMin = dragDataRef.current?.type === "move" ? dragDataRef.current.offsetMin : 0;
+    e.dataTransfer.dropEffect =
+      dragDataRef.current?.type === "move" ? "move" : "copy";
+    const offsetMin =
+      dragDataRef.current?.type === "move" ? dragDataRef.current.offsetMin : 0;
     onDragOver(col, calcDropTimeMin(e.clientY, e.currentTarget, 0, offsetMin));
   }
 
-  function handleColumnDrop(e: React.DragEvent<HTMLDivElement>, col: TColumnKey) {
+  function handleColumnDrop(
+    e: React.DragEvent<HTMLDivElement>,
+    col: TColumnKey,
+  ) {
     e.preventDefault();
     const data = dragDataRef.current;
     dragDataRef.current = null;
     if (!data) return;
     const offsetMin = data.type === "move" ? data.offsetMin : 0;
-    onDrop(col, calcDropTimeMin(e.clientY, e.currentTarget, 0, offsetMin), data);
+    onDrop(
+      col,
+      calcDropTimeMin(e.clientY, e.currentTarget, 0, offsetMin),
+      data,
+    );
   }
 
   return (
-    <div className={`rounded-xl border border-border overflow-hidden${fillHeight ? " flex flex-col flex-1 min-h-0" : ""}`}>
+    <div
+      className={`rounded-xl border border-border overflow-hidden${fillHeight ? " flex flex-col flex-1 min-h-0" : ""}`}
+    >
       {/* Column headers */}
       <div className="flex border-b border-border bg-muted/50">
         <div className="w-14 shrink-0 border-r border-border" />
@@ -146,7 +169,11 @@ export function TimeGrid<TInstance extends GridInstance, TColumnKey extends stri
       {/* Scrollable grid */}
       <div
         ref={scrollRef}
-        className={fillHeight ? "overflow-y-auto bg-background flex-1 min-h-0" : "overflow-y-auto bg-background"}
+        className={
+          fillHeight
+            ? "overflow-y-auto bg-background flex-1 min-h-0"
+            : "overflow-y-auto bg-background"
+        }
         style={fillHeight ? undefined : { height: "calc(100dvh - 220px)" }}
       >
         <div className="flex" style={{ height: totalHeight }}>
@@ -177,7 +204,8 @@ export function TimeGrid<TInstance extends GridInstance, TColumnKey extends stri
                 style={{ height: totalHeight }}
                 onDragOver={(e) => handleColumnDragOver(e, col)}
                 onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node)) onDragLeave();
+                  if (!e.currentTarget.contains(e.relatedTarget as Node))
+                    onDragLeave();
                 }}
                 onDrop={(e) => handleColumnDrop(e, col)}
               >
@@ -199,52 +227,73 @@ export function TimeGrid<TInstance extends GridInstance, TColumnKey extends stri
                 )}
 
                 {/* Task blocks */}
-                {positioned.map(({ instance: inst, col: colSlot, totalCols }) => {
-                  const topPx = (inst.startTimeMin / 60) * HOUR_HEIGHT;
-                  const visibleDurationMin = Math.min(
-                    inst.task.durationMin,
-                    Math.max(0, 1440 - inst.startTimeMin),
-                  );
-                  const heightPx = Math.max((visibleDurationMin / 60) * HOUR_HEIGHT, 20);
-                  const widthPct = 100 / totalCols;
-                  const leftPct = colSlot * widthPct;
+                {positioned.map(
+                  ({ instance: inst, col: colSlot, totalCols }) => {
+                    const topPx = (inst.startTimeMin / 60) * HOUR_HEIGHT;
+                    const visibleDurationMin = Math.min(
+                      inst.task.durationMin,
+                      Math.max(0, 1440 - inst.startTimeMin),
+                    );
+                    const heightPx = Math.max(
+                      (visibleDurationMin / 60) * HOUR_HEIGHT,
+                      20,
+                    );
+                    const widthPct = 100 / totalCols;
+                    const leftPct = colSlot * widthPct;
 
-                  return (
-                    <div
-                      key={inst.id}
-                      draggable={draggable}
-                      onDragStart={draggable ? (e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        dragDataRef.current = {
-                          type: "move",
-                          instanceId: inst.id,
-                          offsetMin: ((e.clientY - rect.top) / HOUR_HEIGHT) * 60,
-                        };
-                        e.dataTransfer.effectAllowed = "move";
-                      } : undefined}
-                      onDragEnd={draggable ? () => { dragDataRef.current = null; onDragLeave(); } : undefined}
-                      className={`absolute rounded border overflow-hidden p-1.5 text-[11px] leading-snug bg-white text-foreground border-gray-300 hover:opacity-90 transition-opacity select-none ${draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
-                      style={{
-                        top: topPx + 1,
-                        height: Math.max(heightPx - 2, 18),
-                        left: `${leftPct + 0.5}%`,
-                        width: `${widthPct - 1}%`,
-                      }}
-                    >
-                      {renderBlock(inst, heightPx)}
-                      {onBlockMenuClick && (
-                        <button
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onClick={(e) => { e.stopPropagation(); onBlockMenuClick(inst); }}
-                          className="absolute top-0.5 right-0.5 flex items-center justify-center w-5 h-5 rounded bg-black/10 text-xs font-bold leading-none text-foreground hover:bg-black/25 transition-colors cursor-pointer"
-                          aria-label="Edit"
-                        >
-                          ···
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                    return (
+                      <div
+                        key={inst.id}
+                        draggable={draggable}
+                        onDragStart={
+                          draggable
+                            ? (e) => {
+                                const rect =
+                                  e.currentTarget.getBoundingClientRect();
+                                dragDataRef.current = {
+                                  type: "move",
+                                  instanceId: inst.id,
+                                  offsetMin:
+                                    ((e.clientY - rect.top) / HOUR_HEIGHT) * 60,
+                                };
+                                e.dataTransfer.effectAllowed = "move";
+                              }
+                            : undefined
+                        }
+                        onDragEnd={
+                          draggable
+                            ? () => {
+                                dragDataRef.current = null;
+                                onDragLeave();
+                              }
+                            : undefined
+                        }
+                        className={`absolute rounded border overflow-hidden p-1.5 text-[11px] leading-snug bg-white text-foreground border-gray-300 hover:opacity-90 transition-opacity select-none ${draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
+                        style={{
+                          top: topPx + 1,
+                          height: Math.max(heightPx - 2, 18),
+                          left: `${leftPct + 0.5}%`,
+                          width: `${widthPct - 1}%`,
+                        }}
+                      >
+                        {renderBlock(inst, heightPx)}
+                        {onBlockMenuClick && (
+                          <button
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onBlockMenuClick(inst);
+                            }}
+                            className="absolute top-0.5 right-0.5 flex items-center justify-center w-5 h-5 rounded bg-black/10 text-xs font-bold leading-none text-foreground hover:bg-black/25 transition-colors cursor-pointer"
+                            aria-label="Edit"
+                          >
+                            ···
+                          </button>
+                        )}
+                      </div>
+                    );
+                  },
+                )}
               </div>
             );
           })}

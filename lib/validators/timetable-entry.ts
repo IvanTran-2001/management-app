@@ -11,4 +11,6 @@ export const createTimetableEntrySchema = z.object({
   endTimeMin: z.number().int().min(0).max(1440).optional(),
 });
 
-export type CreateTimetableEntryInput = z.infer<typeof createTimetableEntrySchema>;
+export type CreateTimetableEntryInput = z.infer<
+  typeof createTimetableEntrySchema
+>;

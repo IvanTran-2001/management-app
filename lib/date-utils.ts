@@ -89,7 +89,13 @@ export function getMondayDateStr(dateStr: string, tz: string): string {
     weekday: "short",
   }).format(probe);
   const DOW_OFFSET: Record<string, number> = {
-    Sun: -6, Mon: 0, Tue: -1, Wed: -2, Thu: -3, Fri: -4, Sat: -5,
+    Sun: -6,
+    Mon: 0,
+    Tue: -1,
+    Wed: -2,
+    Thu: -3,
+    Fri: -4,
+    Sat: -5,
   };
   const offset = DOW_OFFSET[wd] ?? 0;
   return new Date(Date.UTC(y, m - 1, d + offset)).toISOString().split("T")[0];

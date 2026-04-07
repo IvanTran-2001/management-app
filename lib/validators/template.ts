@@ -3,7 +3,11 @@ import z from "zod";
 
 export const createTemplateSchema = z.object({
   name: z.string().trim().min(1, "Title is required").max(200),
-  cycleLengthDays: z.coerce.number().int().min(1, "Must be between 1 and 365").max(365, "Must be between 1 and 365"),
+  cycleLengthDays: z.coerce
+    .number()
+    .int()
+    .min(1, "Must be between 1 and 365")
+    .max(365, "Must be between 1 and 365"),
 });
 
 export const addTemplateInstanceSchema = z.object({
@@ -32,8 +36,14 @@ export const countTimetableEntriesInRangeSchema = z.object({
 });
 
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
-export type AddTemplateInstanceInput = z.infer<typeof addTemplateInstanceSchema>;
-export type UpdateTemplateInstanceInput = z.infer<typeof updateTemplateInstanceSchema>;
+export type AddTemplateInstanceInput = z.infer<
+  typeof addTemplateInstanceSchema
+>;
+export type UpdateTemplateInstanceInput = z.infer<
+  typeof updateTemplateInstanceSchema
+>;
 export type UpdateTemplateDaysInput = z.infer<typeof updateTemplateDaysSchema>;
 export type ApplyTemplateInput = z.infer<typeof applyTemplateSchema>;
-export type CountTimetableEntriesInRangeInput = z.infer<typeof countTimetableEntriesInRangeSchema>;
+export type CountTimetableEntriesInRangeInput = z.infer<
+  typeof countTimetableEntriesInRangeSchema
+>;

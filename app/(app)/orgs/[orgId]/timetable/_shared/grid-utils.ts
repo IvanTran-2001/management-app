@@ -6,8 +6,18 @@ export const HOUR_HEIGHT = 150; // px per hour
 export const SNAP_MIN = 15;
 
 const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -23,7 +33,8 @@ export function hhmmToMin(hhmm: string): number | null {
 }
 
 export function snapMin(raw: number): number {
-  return Math.max(0, Math.min(1439, Math.round(raw / SNAP_MIN) * SNAP_MIN));
+  const snapped = Math.round(raw / SNAP_MIN) * SNAP_MIN;
+  return Math.max(0, Math.min(24 * 60 - SNAP_MIN, snapped));
 }
 
 export function calcDropTimeMin(
@@ -33,7 +44,9 @@ export function calcDropTimeMin(
   offsetMin = 0,
 ): number {
   const rect = colEl.getBoundingClientRect();
-  return snapMin(((clientY - rect.top) / HOUR_HEIGHT) * 60 + startHour * 60 - offsetMin);
+  return snapMin(
+    ((clientY - rect.top) / HOUR_HEIGHT) * 60 + startHour * 60 - offsetMin,
+  );
 }
 
 /** Adds `n` calendar days to a YYYY-MM-DD date string (UTC arithmetic). */
@@ -65,7 +78,10 @@ export function getMonthName(monthIndex: number): string {
 }
 
 /** Groups items by a string key derived from each item. */
-export function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
+export function groupBy<T>(
+  items: T[],
+  key: (item: T) => string,
+): Map<string, T[]> {
   const map = new Map<string, T[]>();
   for (const item of items) {
     const k = key(item);
@@ -79,9 +95,9 @@ export function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[
  * Assigns non-overlapping column slots to items within a single column.
  * Items are sorted by startTimeMin; overlapping ones share width proportionally.
  */
-export function assignColumns<T extends { startTimeMin: number; task: { durationMin: number } }>(
-  items: T[],
-): Array<{ instance: T; col: number; totalCols: number }> {
+export function assignColumns<
+  T extends { startTimeMin: number; task: { durationMin: number } },
+>(items: T[]): Array<{ instance: T; col: number; totalCols: number }> {
   const sorted = [...items].sort((a, b) => a.startTimeMin - b.startTimeMin);
   const colEnds: number[] = [];
 

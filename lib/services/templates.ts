@@ -4,7 +4,12 @@
  */
 import { prisma } from "@/lib/prisma";
 import type { ServiceResult } from "./types";
-import { localMidnightUTC, addCalendarDays, localToUTC, utcToLocal } from "@/lib/date-utils";
+import {
+  localMidnightUTC,
+  addCalendarDays,
+  localToUTC,
+  utcToLocal,
+} from "@/lib/date-utils";
 
 /**
  * Returns all templates for the given org, ordered newest-first.
@@ -74,22 +79,30 @@ export async function addTemplateInstance(
   startTimeMin: number,
 ): Promise<ServiceResult<null>> {
   const [task, template] = await Promise.all([
-    prisma.task.findFirst({ where: { id: taskId, orgId }, select: { id: true } }),
+    prisma.task.findFirst({
+      where: { id: taskId, orgId },
+      select: { id: true, durationMin: true },
+    }),
     prisma.template.findFirst({
       where: { id: templateId, orgId },
       select: { id: true, cycleLengthDays: true },
     }),
   ]);
   if (!task) return { ok: false, error: "Task not found", code: "NOT_FOUND" };
-  if (!template) return { ok: false, error: "Template not found", code: "NOT_FOUND" };
+  if (!template)
+    return { ok: false, error: "Template not found", code: "NOT_FOUND" };
   if (dayIndex < 0 || dayIndex >= template.cycleLengthDays) {
-    return { ok: false, error: `Day must be between 0 and ${template.cycleLengthDays - 1}`, code: "INVALID" };
+    return {
+      ok: false,
+      error: `Day must be between 0 and ${template.cycleLengthDays - 1}`,
+      code: "INVALID",
+    };
   }
   if (startTimeMin < 0 || startTimeMin > 1439) {
     return { ok: false, error: "Invalid time", code: "INVALID" };
   }
 
-  const endTimeMin = Math.min(startTimeMin + 60, 1439);
+  const endTimeMin = Math.min(startTimeMin + task.durationMin, 1440);
   await prisma.templateEntry.create({
     data: { taskId, templateId, dayIndex, startTimeMin, endTimeMin },
   });
@@ -123,7 +136,7 @@ export async function updateTemplateInstance(
 ): Promise<ServiceResult<null>> {
   const entry = await prisma.templateEntry.findFirst({
     where: { id: instanceId, template: { orgId } },
-    select: { id: true, templateId: true },
+    select: { id: true, templateId: true, durationMin: true },
   });
   if (!entry) return { ok: false, error: "Not found", code: "NOT_FOUND" };
 
@@ -132,7 +145,8 @@ export async function updateTemplateInstance(
       where: { id: entry.templateId, orgId },
       select: { cycleLengthDays: true },
     });
-    if (!template) return { ok: false, error: "Template not found", code: "NOT_FOUND" };
+    if (!template)
+      return { ok: false, error: "Template not found", code: "NOT_FOUND" };
     if (
       !Number.isInteger(update.dayIndex) ||
       update.dayIndex < 0 ||
@@ -146,7 +160,10 @@ export async function updateTemplateInstance(
     }
   }
 
-  if (update.startTimeMin !== undefined && (update.startTimeMin < 0 || update.startTimeMin > 1439)) {
+  if (
+    update.startTimeMin !== undefined &&
+    (update.startTimeMin < 0 || update.startTimeMin > 1439)
+  ) {
     return { ok: false, error: "Invalid time", code: "INVALID" };
   }
 
@@ -154,7 +171,10 @@ export async function updateTemplateInstance(
     where: { id: instanceId },
     data: {
       ...(update.dayIndex !== undefined && { dayIndex: update.dayIndex }),
-      ...(update.startTimeMin !== undefined && { startTimeMin: update.startTimeMin }),
+      ...(update.startTimeMin !== undefined && {
+        startTimeMin: update.startTimeMin,
+        endTimeMin: Math.min(update.startTimeMin + entry.durationMin, 1440),
+      }),
     },
   });
   return { ok: true, data: null };
@@ -169,12 +189,20 @@ export async function updateTemplateDays(
   templateId: string,
   cycleLengthDays: number,
 ): Promise<ServiceResult<null>> {
-  if (!Number.isInteger(cycleLengthDays) || cycleLengthDays < 1 || cycleLengthDays > 365) {
+  if (
+    !Number.isInteger(cycleLengthDays) ||
+    cycleLengthDays < 1 ||
+    cycleLengthDays > 365
+  ) {
     return { ok: false, error: "Invalid cycle length", code: "INVALID" };
   }
 
   const stranded = await prisma.templateEntry.count({
-    where: { templateId, template: { orgId }, dayIndex: { gte: cycleLengthDays } },
+    where: {
+      templateId,
+      template: { orgId },
+      dayIndex: { gte: cycleLengthDays },
+    },
   });
   if (stranded > 0) {
     return {
@@ -184,10 +212,13 @@ export async function updateTemplateDays(
     };
   }
 
-  await prisma.template.updateMany({
+  const updated = await prisma.template.updateMany({
     where: { id: templateId, orgId },
     data: { cycleLengthDays },
   });
+  if (updated.count === 0) {
+    return { ok: false, error: "Template not found", code: "NOT_FOUND" };
+  }
   return { ok: true, data: null };
 }
 
@@ -200,14 +231,27 @@ export async function addTemplateInstanceAssignee(
   membershipId: string,
 ): Promise<ServiceResult<null>> {
   const [entry, membership] = await Promise.all([
-    prisma.templateEntry.findFirst({ where: { id: instanceId, template: { orgId } }, select: { id: true } }),
-    prisma.membership.findFirst({ where: { id: membershipId, orgId }, select: { id: true } }),
+    prisma.templateEntry.findFirst({
+      where: { id: instanceId, template: { orgId } },
+      select: { id: true },
+    }),
+    prisma.membership.findFirst({
+      where: { id: membershipId, orgId },
+      select: { id: true },
+    }),
   ]);
-  if (!entry) return { ok: false, error: "Template entry not found", code: "NOT_FOUND" };
-  if (!membership) return { ok: false, error: "Membership not found", code: "NOT_FOUND" };
+  if (!entry)
+    return { ok: false, error: "Template entry not found", code: "NOT_FOUND" };
+  if (!membership)
+    return { ok: false, error: "Membership not found", code: "NOT_FOUND" };
 
   await prisma.templateEntryAssignee.upsert({
-    where: { templateEntryId_membershipId: { templateEntryId: instanceId, membershipId } },
+    where: {
+      templateEntryId_membershipId: {
+        templateEntryId: instanceId,
+        membershipId,
+      },
+    },
     create: { templateEntryId: instanceId, membershipId },
     update: {},
   });
@@ -254,7 +298,10 @@ export async function countTimetableEntriesInRange(
   const orgTz = org.timezone ?? "UTC";
   const MS_DAY = 86_400_000;
   const startUtcMs = localMidnightUTC(startDateStr, orgTz);
-  const endUtcMs = localMidnightUTC(addCalendarDays(startDateStr, totalDays), orgTz);
+  const endUtcMs = localMidnightUTC(
+    addCalendarDays(startDateStr, totalDays),
+    orgTz,
+  );
   const queryFrom = new Date(Math.floor(startUtcMs / MS_DAY) * MS_DAY - MS_DAY);
   const queryTo = new Date(Math.floor(endUtcMs / MS_DAY) * MS_DAY + MS_DAY * 2);
 
@@ -287,18 +334,37 @@ export async function applyTemplate(
   if (!startDateStr || !/^\d{4}-\d{2}-\d{2}$/.test(startDateStr)) {
     return { ok: false, error: "Invalid start date", code: "INVALID" };
   }
-  if (!Number.isInteger(cycleRepeats) || cycleRepeats < 1 || cycleRepeats > 52) {
-    return { ok: false, error: "Cycle repeat must be between 1 and 52", code: "INVALID" };
+  if (
+    !Number.isInteger(cycleRepeats) ||
+    cycleRepeats < 1 ||
+    cycleRepeats > 52
+  ) {
+    return {
+      ok: false,
+      error: "Cycle repeat must be between 1 and 52",
+      code: "INVALID",
+    };
   }
 
   const [org, template] = await Promise.all([
-    prisma.organization.findUnique({ where: { id: orgId }, select: { timezone: true } }),
+    prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { timezone: true },
+    }),
     prisma.template.findFirst({
       where: { id: templateId, orgId },
       include: {
         entries: {
           include: {
-            task: { select: { id: true, name: true, color: true, description: true, durationMin: true } },
+            task: {
+              select: {
+                id: true,
+                name: true,
+                color: true,
+                description: true,
+                durationMin: true,
+              },
+            },
             assignees: { select: { membershipId: true } },
           },
         },
@@ -307,7 +373,8 @@ export async function applyTemplate(
   ]);
 
   if (!org) return { ok: false, error: "Org not found", code: "NOT_FOUND" };
-  if (!template) return { ok: false, error: "Template not found", code: "NOT_FOUND" };
+  if (!template)
+    return { ok: false, error: "Template not found", code: "NOT_FOUND" };
 
   const orgTz = org.timezone ?? "UTC";
   const totalDays = template.cycleLengthDays * cycleRepeats;
@@ -330,17 +397,17 @@ export async function applyTemplate(
     })
     .map((e) => e.id);
 
-  if (idsToDelete.length > 0) {
-    await prisma.timetableEntry.deleteMany({ where: { id: { in: idsToDelete } } });
-  }
-
   const createData = [];
   for (let repeat = 0; repeat < cycleRepeats; repeat++) {
     for (const entry of template.entries) {
       const dayOffset = repeat * template.cycleLengthDays + entry.dayIndex;
       const dayDateStr = addCalendarDays(startDateStr, dayOffset);
       const durationMin = entry.durationMin ?? entry.task.durationMin;
-      const { utcDate, utcStartTimeMin } = localToUTC(dayDateStr, entry.startTimeMin, orgTz);
+      const { utcDate, utcStartTimeMin } = localToUTC(
+        dayDateStr,
+        entry.startTimeMin,
+        orgTz,
+      );
       createData.push({
         orgId,
         taskId: entry.task.id,
@@ -350,22 +417,29 @@ export async function applyTemplate(
         durationMin,
         date: utcDate,
         startTimeMin: utcStartTimeMin,
-        endTimeMin: Math.min(utcStartTimeMin + durationMin, 1439),
+        endTimeMin: Math.min(utcStartTimeMin + durationMin, 1440),
         assignees: entry.assignees.map((a) => a.membershipId),
       });
     }
   }
 
-  await Promise.all(
-    createData.map(({ assignees, ...data }) =>
-      prisma.timetableEntry.create({
+  await prisma.$transaction(async (tx) => {
+    if (idsToDelete.length > 0) {
+      await tx.timetableEntry.deleteMany({
+        where: { id: { in: idsToDelete } },
+      });
+    }
+    for (const { assignees, ...data } of createData) {
+      await tx.timetableEntry.create({
         data: {
           ...data,
-          assignees: { create: assignees.map((membershipId) => ({ membershipId })) },
+          assignees: {
+            create: assignees.map((membershipId) => ({ membershipId })),
+          },
         },
-      }),
-    ),
-  );
+      });
+    }
+  });
 
   return { ok: true, data: { created: createData.length } };
 }

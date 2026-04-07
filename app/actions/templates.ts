@@ -58,7 +58,11 @@ export async function createTemplateAction(
     return { ok: false, errors };
   }
 
-  const result = await createTemplate(orgId, parsed.data.name, parsed.data.cycleLengthDays);
+  const result = await createTemplate(
+    orgId,
+    parsed.data.name,
+    parsed.data.cycleLengthDays,
+  );
   if (!result.ok) return { ok: false, errors: { _: [result.error] } };
 
   revalidatePath(`/orgs/${orgId}/timetable/templates`);
@@ -83,7 +87,13 @@ export async function addTemplateInstanceAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await addTemplateInstance(orgId, templateId, taskId, dayIndex, startTimeMin);
+  const result = await addTemplateInstance(
+    orgId,
+    templateId,
+    taskId,
+    dayIndex,
+    startTimeMin,
+  );
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable/templates/${templateId}`);
@@ -172,7 +182,11 @@ export async function addInstanceAssigneeAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await addTemplateInstanceAssignee(orgId, instanceId, membershipId);
+  const result = await addTemplateInstanceAssignee(
+    orgId,
+    instanceId,
+    membershipId,
+  );
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable/templates`);
@@ -194,7 +208,11 @@ export async function removeInstanceAssigneeAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await removeTemplateInstanceAssignee(orgId, instanceId, membershipId);
+  const result = await removeTemplateInstanceAssignee(
+    orgId,
+    instanceId,
+    membershipId,
+  );
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable/templates`);
@@ -216,7 +234,11 @@ export async function countTimetableEntriesInRangeAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await countTimetableEntriesInRange(orgId, startDateStr, totalDays);
+  const result = await countTimetableEntriesInRange(
+    orgId,
+    startDateStr,
+    totalDays,
+  );
   if (!result.ok) return { ok: false, error: result.error };
 
   return { ok: true, count: result.data.count };
@@ -240,7 +262,12 @@ export async function applyTemplateAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await applyTemplate(orgId, templateId, startDateStr, cycleRepeats);
+  const result = await applyTemplate(
+    orgId,
+    templateId,
+    startDateStr,
+    cycleRepeats,
+  );
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable`);

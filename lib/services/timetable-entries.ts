@@ -6,7 +6,7 @@
  * - `date` is stored as the UTC midnight of the UTC calendar day that
  *   contains the event's absolute UTC timestamp.
  * - `startTimeMin` / `endTimeMin` are UTC minutes from that UTC midnight
- *   (0–1439), NOT wall-clock local minutes.
+ *   (0–1440), NOT wall-clock local minutes. 1440 = midnight end-of-day.
  * - All conversions between local and UTC use `localToUTC` / `utcToLocal`
  *   from `lib/date-utils`; never apply `getHours()` / `getMinutes()` directly.
  * - Template entries remain wall-clock (timezone-agnostic) and are NOT
@@ -17,7 +17,12 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, EntryStatus } from "@prisma/client";
 import type { ServiceResult } from "./types";
 import type { CreateTimetableEntryInput } from "@/lib/validators/timetable-entry";
-import { localMidnightUTC, addCalendarDays, localToUTC, utcToLocal } from "@/lib/date-utils";
+import {
+  localMidnightUTC,
+  addCalendarDays,
+  localToUTC,
+  utcToLocal,
+} from "@/lib/date-utils";
 
 /** Options for filtering timetable entries returned by `listTimetableEntries`. */
 export type ListTimetableEntriesOptions = {
@@ -267,7 +272,9 @@ export async function createTimetableEntry(
   taskId: string,
   dateStr: string,
   startTimeMin: number,
-): Promise<ServiceResult<Prisma.TimetableEntryGetPayload<Record<string, never>>>> {
+): Promise<
+  ServiceResult<Prisma.TimetableEntryGetPayload<Record<string, never>>>
+> {
   const [org, task] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: orgId },
@@ -275,14 +282,24 @@ export async function createTimetableEntry(
     }),
     prisma.task.findFirst({
       where: { id: taskId, orgId },
-      select: { id: true, name: true, color: true, description: true, durationMin: true },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        description: true,
+        durationMin: true,
+      },
     }),
   ]);
   if (!org) return { ok: false, error: "Org not found", code: "NOT_FOUND" };
   if (!task) return { ok: false, error: "Task not found", code: "NOT_FOUND" };
 
-  const { utcDate, utcStartTimeMin } = localToUTC(dateStr, startTimeMin, org.timezone ?? "UTC");
-  const endTimeMin = Math.min(utcStartTimeMin + task.durationMin, 1439);
+  const { utcDate, utcStartTimeMin } = localToUTC(
+    dateStr,
+    startTimeMin,
+    org.timezone ?? "UTC",
+  );
+  const endTimeMin = Math.min(utcStartTimeMin + task.durationMin, 1440);
 
   const entry = await prisma.timetableEntry.create({
     data: {
@@ -309,7 +326,9 @@ export async function updateTimetableEntry(
   orgId: string,
   entryId: string,
   update: { startTimeMin?: number; dateStr?: string; status?: EntryStatus },
-): Promise<ServiceResult<Prisma.TimetableEntryGetPayload<Record<string, never>>>> {
+): Promise<
+  ServiceResult<Prisma.TimetableEntryGetPayload<Record<string, never>>>
+> {
   const entry = await prisma.timetableEntry.findFirst({
     where: { id: entryId, orgId },
     select: { id: true, durationMin: true, date: true, startTimeMin: true },
@@ -322,26 +341,36 @@ export async function updateTimetableEntry(
     data.status = update.status;
   }
 
-  const needsTimeUpdate = update.startTimeMin !== undefined || update.dateStr !== undefined;
+  const needsTimeUpdate =
+    update.startTimeMin !== undefined || update.dateStr !== undefined;
   if (needsTimeUpdate) {
     const org = await prisma.organization.findUnique({
       where: { id: orgId },
       select: { timezone: true },
     });
     const tz = org?.timezone ?? "UTC";
-    const { localDateStr: currentLocalDate, localStartTimeMin: currentLocalMin } =
-      utcToLocal(entry.date, entry.startTimeMin, tz);
+    const {
+      localDateStr: currentLocalDate,
+      localStartTimeMin: currentLocalMin,
+    } = utcToLocal(entry.date, entry.startTimeMin, tz);
 
     const targetLocalDate = update.dateStr ?? currentLocalDate;
     const targetLocalMin = update.startTimeMin ?? currentLocalMin;
 
-    const { utcDate, utcStartTimeMin } = localToUTC(targetLocalDate, targetLocalMin, tz);
+    const { utcDate, utcStartTimeMin } = localToUTC(
+      targetLocalDate,
+      targetLocalMin,
+      tz,
+    );
     data.date = utcDate;
     data.startTimeMin = utcStartTimeMin;
-    data.endTimeMin = Math.min(utcStartTimeMin + entry.durationMin, 1439);
+    data.endTimeMin = Math.min(utcStartTimeMin + entry.durationMin, 1440);
   }
 
-  const updated = await prisma.timetableEntry.update({ where: { id: entryId }, data });
+  const updated = await prisma.timetableEntry.update({
+    where: { id: entryId },
+    data,
+  });
   return { ok: true, data: updated };
 }
 
@@ -371,14 +400,26 @@ export async function addTimetableEntryAssignee(
   membershipId: string,
 ): Promise<ServiceResult<null>> {
   const [entry, membership] = await Promise.all([
-    prisma.timetableEntry.findFirst({ where: { id: entryId, orgId }, select: { id: true } }),
-    prisma.membership.findFirst({ where: { id: membershipId, orgId }, select: { id: true } }),
+    prisma.timetableEntry.findFirst({
+      where: { id: entryId, orgId },
+      select: { id: true },
+    }),
+    prisma.membership.findFirst({
+      where: { id: membershipId, orgId },
+      select: { id: true },
+    }),
   ]);
   if (!entry) return { ok: false, error: "Entry not found", code: "NOT_FOUND" };
-  if (!membership) return { ok: false, error: "Membership not found", code: "NOT_FOUND" };
+  if (!membership)
+    return { ok: false, error: "Membership not found", code: "NOT_FOUND" };
 
   await prisma.timetableEntryAssignee.upsert({
-    where: { timetableEntryId_membershipId: { timetableEntryId: entryId, membershipId } },
+    where: {
+      timetableEntryId_membershipId: {
+        timetableEntryId: entryId,
+        membershipId,
+      },
+    },
     create: { timetableEntryId: entryId, membershipId },
     update: {},
   });
@@ -394,7 +435,11 @@ export async function removeTimetableEntryAssignee(
   membershipId: string,
 ): Promise<ServiceResult<null>> {
   const assignee = await prisma.timetableEntryAssignee.findFirst({
-    where: { timetableEntryId: entryId, membershipId, timetableEntry: { orgId } },
+    where: {
+      timetableEntryId: entryId,
+      membershipId,
+      timetableEntry: { orgId },
+    },
     select: { id: true },
   });
   if (!assignee) return { ok: false, error: "Not found", code: "NOT_FOUND" };

@@ -19,7 +19,6 @@ import { TimetableActions } from "./timetable-actions";
 import { RoleFilterButton } from "./role-filter-button";
 import { toLocalDateStr, getMondayDateStr } from "@/lib/date-utils";
 
-
 export default async function TimetablePage({
   params,
   searchParams,
@@ -51,7 +50,14 @@ export default async function TimetablePage({
       : getMondayDateStr(toLocalDateStr(new Date(), orgTz), orgTz);
 
   const mode = modeParam === "simple" ? "simple" : "calendar";
-  const [instances, templates, tasks, memberships, currentMembership, orgRoles] = await Promise.all([
+  const [
+    instances,
+    templates,
+    tasks,
+    memberships,
+    currentMembership,
+    orgRoles,
+  ] = await Promise.all([
     getWeekTimetableInstances(orgId, orgTz, weekStart),
     getTimetableTemplates(orgId),
     getTasks(orgId),
@@ -61,7 +67,11 @@ export default async function TimetablePage({
   ]);
 
   const canManageTimetable = currentMembership
-    ? await memberHasPermission(currentMembership.id, orgId, PermissionAction.MANAGE_TIMETABLE)
+    ? await memberHasPermission(
+        currentMembership.id,
+        orgId,
+        PermissionAction.MANAGE_TIMETABLE,
+      )
     : false;
 
   // Build membership→roles map for client rendering
@@ -84,12 +94,16 @@ export default async function TimetablePage({
   let filteredInstances = instances;
   if (rawRoleId) {
     const eligibleTaskIds = new Set(
-      (await prisma.taskEligibility.findMany({
-        where: { roleId: rawRoleId, task: { orgId } },
-        select: { taskId: true },
-      })).map((e) => e.taskId),
+      (
+        await prisma.taskEligibility.findMany({
+          where: { roleId: rawRoleId, task: { orgId } },
+          select: { taskId: true },
+        })
+      ).map((e) => e.taskId),
     );
-    filteredInstances = instances.filter((inst) => eligibleTaskIds.has(inst.taskId));
+    filteredInstances = instances.filter((inst) =>
+      eligibleTaskIds.has(inst.taskId),
+    );
   }
 
   const timetableHref = (m: string) => {
