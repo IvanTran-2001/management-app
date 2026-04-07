@@ -9,7 +9,10 @@
  */
 
 import { PermissionAction, EntryStatus } from "@prisma/client";
-import { requireOrgPermissionAction, requireOrgMemberAction } from "@/lib/authz";
+import {
+  requireOrgPermissionAction,
+  requireOrgMemberAction,
+} from "@/lib/authz";
 import { revalidatePath } from "next/cache";
 import {
   createTimetableEntry,
@@ -22,7 +25,7 @@ import {
 /**
  * Creates a new live timetable entry from a task.
  * Snapshots name/color/description from the task at creation time.
- * `endTimeMin` is automatically set to `startTimeMin + task.durationMin`, capped at 23:59.
+ * `endTimeMin` is automatically set to `startTimeMin + task.durationMin`, capped at 1440 (midnight).
  */
 export async function createTimetableEntryAction(
   orgId: string,
@@ -36,7 +39,12 @@ export async function createTimetableEntryAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await createTimetableEntry(orgId, taskId, dateStr, startTimeMin);
+  const result = await createTimetableEntry(
+    orgId,
+    taskId,
+    dateStr,
+    startTimeMin,
+  );
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable`);
@@ -139,7 +147,11 @@ export async function removeTimetableEntryAssigneeAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await removeTimetableEntryAssignee(orgId, entryId, membershipId);
+  const result = await removeTimetableEntryAssignee(
+    orgId,
+    entryId,
+    membershipId,
+  );
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable`);

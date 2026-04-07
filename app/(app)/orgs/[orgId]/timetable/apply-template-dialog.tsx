@@ -24,10 +24,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { applyTemplateAction, countTimetableEntriesInRangeAction } from "@/app/actions/templates";
+import {
+  applyTemplateAction,
+  countTimetableEntriesInRangeAction,
+} from "@/app/actions/templates";
 
 /** Minimal template data needed for the dropdown and date-range preview. */
-export type TemplateOption = { id: string; name: string; cycleLengthDays: number };
+export type TemplateOption = {
+  id: string;
+  name: string;
+  cycleLengthDays: number;
+};
 
 interface ApplyTemplateDialogProps {
   open: boolean;
@@ -38,7 +45,20 @@ interface ApplyTemplateDialogProps {
   defaultStartDate: string;
 }
 
-const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 /** Formats a date range as "Mon D – Mon D, YYYY" given a start date and total day count. */
 function formatDateRange(startDateStr: string, totalDays: number): string {
@@ -67,26 +87,36 @@ export function ApplyTemplateDialog({
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [cycleRepeats, setCycleRepeats] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [existingCount, setExistingCount] = useState<number>(0);
 
   const selected = templates.find((t) => t.id === selectedId);
   const totalDays = selected ? selected.cycleLengthDays * cycleRepeats : 0;
-  const dateRangeLabel = selected && startDate ? formatDateRange(startDate, totalDays) : null;
+  const dateRangeLabel =
+    selected && startDate ? formatDateRange(startDate, totalDays) : null;
 
-  const [existingCount, setExistingCount] = useState<number>(0);
   useEffect(() => {
-    if (!startDate || totalDays === 0) return;
+    if (!open || !startDate || totalDays === 0) return;
     let cancelled = false;
-    countTimetableEntriesInRangeAction(orgId, startDate, totalDays).then((res) => {
-      if (!cancelled) setExistingCount(res.ok ? (res.count ?? 0) : 0);
-    });
-    return () => { cancelled = true; };
-  }, [orgId, startDate, totalDays]);
+    countTimetableEntriesInRangeAction(orgId, startDate, totalDays).then(
+      (res) => {
+        if (!cancelled) setExistingCount(res.ok ? (res.count ?? 0) : 0);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [open, orgId, startDate, totalDays]);
 
   function handleApply() {
     if (!selectedId || !startDate || cycleRepeats < 1) return;
     setError(null);
     startTransition(async () => {
-      const result = await applyTemplateAction(orgId, selectedId, startDate, cycleRepeats);
+      const result = await applyTemplateAction(
+        orgId,
+        selectedId,
+        startDate,
+        cycleRepeats,
+      );
       if (!result.ok) {
         setError(result.error ?? "Something went wrong");
         return;
@@ -107,18 +137,23 @@ export function ApplyTemplateDialog({
         <div className="flex flex-col gap-3">
           {/* Template select */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground">Template</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Template
+            </label>
             <select
               className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
             >
               {templates.length === 0 && (
-                <option value="" disabled>No templates available</option>
+                <option value="" disabled>
+                  No templates available
+                </option>
               )}
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name} ({t.cycleLengthDays} day{t.cycleLengthDays !== 1 ? "s" : ""})
+                  {t.name} ({t.cycleLengthDays} day
+                  {t.cycleLengthDays !== 1 ? "s" : ""})
                 </option>
               ))}
             </select>
@@ -126,7 +161,9 @@ export function ApplyTemplateDialog({
 
           {/* Start date */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground">Start Date</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Start Date
+            </label>
             <Input
               type="date"
               value={startDate}
@@ -136,13 +173,19 @@ export function ApplyTemplateDialog({
 
           {/* Cycle repeat */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground">Cycle Repeat</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Cycle Repeat
+            </label>
             <Input
               type="number"
               min={1}
               max={52}
               value={cycleRepeats}
-              onChange={(e) => setCycleRepeats(Math.max(1, Math.min(52, Number(e.target.value))))}
+              onChange={(e) =>
+                setCycleRepeats(
+                  Math.max(1, Math.min(52, Number(e.target.value))),
+                )
+              }
             />
           </div>
 
@@ -152,31 +195,44 @@ export function ApplyTemplateDialog({
               <div className="flex gap-2">
                 <InfoIcon className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
                 <div>
-                  <span className="font-medium">{selected.name} × {cycleRepeats}</span>
-                  <div className="text-xs mt-0.5 text-amber-700">{dateRangeLabel}</div>
+                  <span className="font-medium">
+                    {selected.name} × {cycleRepeats}
+                  </span>
+                  <div className="text-xs mt-0.5 text-amber-700">
+                    {dateRangeLabel}
+                  </div>
                 </div>
               </div>
               {existingCount > 0 && (
                 <div className="flex gap-2">
                   <TriangleAlertIcon className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
                   <span className="text-xs text-amber-700">
-                    {existingCount} existing entr{existingCount === 1 ? "y" : "ies"} in this range will be replaced.
+                    {existingCount} existing entr
+                    {existingCount === 1 ? "y" : "ies"} in this range will be
+                    replaced.
                   </span>
                 </div>
               )}
             </div>
           )}
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
             Cancel
           </Button>
-          <Button size="sm" onClick={handleApply} disabled={isPending || !selectedId || templates.length === 0}>
+          <Button
+            size="sm"
+            onClick={handleApply}
+            disabled={isPending || !selectedId || templates.length === 0}
+          >
             {isPending ? "Applying…" : "Apply"}
           </Button>
         </DialogFooter>

@@ -34,8 +34,18 @@ interface TimetableActionsProps {
  * Renders the "Actions" dropdown button and the Apply Template dialog.
  * Provides "Apply Template" (opens dialog) and "Templates" (navigation link).
  */
-export function TimetableActions({ orgId, templates, weekStart }: TimetableActionsProps) {
+export function TimetableActions({
+  orgId,
+  templates,
+  weekStart,
+}: TimetableActionsProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
+
+  function openDialog() {
+    setDialogKey((k) => k + 1);
+    setDialogOpen(true);
+  }
 
   return (
     <>
@@ -46,19 +56,18 @@ export function TimetableActions({ orgId, templates, weekStart }: TimetableActio
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setDialogOpen(true)}>
+          <DropdownMenuItem onSelect={openDialog}>
             Apply Template
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href={`/orgs/${orgId}/timetable/templates`}>
-              Templates
-            </Link>
+            <Link href={`/orgs/${orgId}/timetable/templates`}>Templates</Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <ApplyTemplateDialog
+        key={dialogKey}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         orgId={orgId}

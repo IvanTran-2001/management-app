@@ -1,5 +1,17 @@
 "use client";
 
+/**
+ * Role filter dropdown for the timetable toolbar.
+ *
+ * Filters displayed entries to those whose `TaskEligibility` includes the
+ * selected role. The selected `roleId` is stored in the URL (`?roleId=`) so
+ * it persists across week navigation without any client state.
+ *
+ * Clicking an already-selected role toggles it off (clears the filter).
+ * A "Clear filter" item is shown at the bottom of the dropdown when a filter
+ * is active. Returns `null` when the org has no roles.
+ */
+
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,10 +23,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+/** Props for RoleFilterButton. */
 interface RoleFilterButtonProps {
+  /** All roles for the org to populate the dropdown. */
   roles: { id: string; name: string; color: string | null }[];
+  /** Current week start (YYYY-MM-DD) — preserved in the generated hrefs. */
   weekStart: string;
+  /** Current view mode ("calendar" | "simple") — preserved in the generated hrefs. */
   mode: string;
+  /** The currently active role filter ID, or `null` for no filter. */
   selectedRoleId: string | null;
   orgId: string;
 }

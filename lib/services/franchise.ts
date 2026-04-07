@@ -135,6 +135,7 @@ export async function cloneTasksFromParent(
 }
 
 /**
+ * Clones all templates and their entries from a parent org into a child org.
  *
  * What is cloned:
  *   - Every Template (name, cycleLengthDays)

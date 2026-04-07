@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface GridNavProps {
@@ -10,37 +12,73 @@ interface GridNavProps {
   nextDisabled?: boolean;
 }
 
-/**
- * Navigation bar shared by both the timetable week navigator and the
- * template cycle-page navigator.
- *
- * `onPrev`/`onNext` accept either a click handler (template) or an href
- * string (timetable, which uses `<Link>` for full page navigation).
- */
-export function GridNav({ label, onPrev, onNext, prevDisabled, nextDisabled }: GridNavProps) {
-  const PrevButton = (
-    <Button variant="ghost" size="sm" className="gap-1" disabled={prevDisabled}>
-      ◀ Prev
-    </Button>
-  );
-  const NextButton = (
-    <Button variant="ghost" size="sm" className="gap-1" disabled={nextDisabled}>
-      Next ▶
-    </Button>
-  );
-
+export function GridNav({
+  label,
+  onPrev,
+  onNext,
+  prevDisabled,
+  nextDisabled,
+}: GridNavProps) {
   return (
     <div className="flex items-center justify-between rounded-lg border px-4 py-1.5">
       {typeof onPrev === "function" ? (
-        <span onClick={onPrev}>{PrevButton}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1"
+          disabled={prevDisabled}
+          onClick={onPrev}
+        >
+          <ChevronLeft className="h-4 w-4" /> Prev
+        </Button>
       ) : (
-        <a href={onPrev.href}>{PrevButton}</a>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1"
+          disabled={prevDisabled}
+          asChild={!prevDisabled}
+        >
+          {prevDisabled ? (
+            <span>
+              <ChevronLeft className="h-4 w-4" /> Prev
+            </span>
+          ) : (
+            <Link href={onPrev.href}>
+              <ChevronLeft className="h-4 w-4" /> Prev
+            </Link>
+          )}
+        </Button>
       )}
       <span className="text-sm font-medium">{label}</span>
       {typeof onNext === "function" ? (
-        <span onClick={onNext}>{NextButton}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1"
+          disabled={nextDisabled}
+          onClick={onNext}
+        >
+          Next <ChevronRight className="h-4 w-4" />
+        </Button>
       ) : (
-        <a href={onNext.href}>{NextButton}</a>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1"
+          disabled={nextDisabled}
+          asChild={!nextDisabled}
+        >
+          {nextDisabled ? (
+            <span>
+              Next <ChevronRight className="h-4 w-4" />
+            </span>
+          ) : (
+            <Link href={onNext.href}>
+              Next <ChevronRight className="h-4 w-4" />
+            </Link>
+          )}
+        </Button>
       )}
     </div>
   );

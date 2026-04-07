@@ -11,10 +11,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PermissionAction } from "@prisma/client";
 import { requireOrgMemberPage } from "@/lib/authz";
-import {
-  getOrgMembership,
-  memberHasPermission,
-} from "@/lib/authz/_shared";
+import { getOrgMembership, memberHasPermission } from "@/lib/authz/_shared";
 import { getTaskById } from "@/lib/services/tasks";
 import { Toolbar } from "@/components/layout/toolbar";
 import { TaskViewActions } from "./task-view-actions";
