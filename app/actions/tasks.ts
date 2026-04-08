@@ -3,12 +3,12 @@
 /**
  * Server Actions for task management.
  *
- * createTaskAction — used by the create-task form. Parses FormData, validates with
- * `createTaskSchema`, delegates to the task service, then revalidates the task list
- * and redirects back to it.
- *
- * deleteTaskAction — called by the TaskTable row menu. Requires MANAGE_TASKS.
- * Delegates to the task service (scoped delete) and revalidates the task list.
+ * createTaskAction    — create-task form; parses FormData, validates with `createTaskSchema`,
+ *                       delegates to the task service, then revalidates and redirects.
+ * updateTaskAction    — edit-task form; same pipeline but updates an existing task.
+ * deleteTaskAction    — task-table row menu; scoped delete, requires MANAGE_TASKS.
+ * addEligibilityAction    — toggle a role onto a task's eligibility list.
+ * removeEligibilityAction — toggle a role off a task's eligibility list.
  */
 
 import { PermissionAction } from "@prisma/client";
@@ -25,11 +25,40 @@ import { createTaskSchema, updateTaskSchema } from "@/lib/validators/task";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+/** Parses numeric and string fields from a task FormData submission. */
+function parseTaskFormData(formData: FormData) {
+  const num = (key: string) => {
+    const v = formData.get(key);
+    if (v === null || v === "") return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  };
+
+  return {
+    title: String(formData.get("title") ?? ""),
+    description: formData.get("description") || undefined,
+    durationMin: num("durationMin"),
+    preferredStartTimeMin: num("preferredStartTimeMin"),
+    peopleRequired: num("peopleRequired") ?? 1,
+    minWaitDays: num("minWaitDays"),
+    maxWaitDays: num("maxWaitDays"),
+  };
+}
+
 export type CreateTaskFormState =
   | { ok: false; errors: Record<string, string[]> }
   | { ok: true }
   | null;
 
+/**
+ * Creates a new task definition for an org and sets its initial role eligibility.
+ *
+ * Auth: caller must hold `MANAGE_TASKS` in this org.
+ * Parses raw `FormData` (all values are strings from the browser) converting
+ * numeric fields before Zod validation. Eligibility role IDs are taken from
+ * repeated `"roleIds"` entries on the form. On success, revalidates the task
+ * list and redirects there.
+ */
 export async function createTaskAction(
   orgId: string,
   _prev: CreateTaskFormState,
@@ -41,25 +70,7 @@ export async function createTaskAction(
   );
   if (!authz.ok) return { ok: false, errors: { _: ["Unauthorized"] } };
 
-  // FormData values are always strings; convert numeric fields to numbers
-  // before passing to the Zod schema which expects `number`.
-  const num = (key: string) => {
-    const v = formData.get(key);
-    if (v === null || v === "") return undefined;
-    const n = Number(v);
-    return isNaN(n) ? undefined : n;
-  };
-
-  const raw = {
-    title: String(formData.get("title") ?? ""),
-    description: formData.get("description") || undefined,
-    durationMin: num("durationMin"),
-    preferredStartTimeMin: num("preferredStartTimeMin"),
-    peopleRequired: num("peopleRequired") ?? 1,
-    minWaitDays: num("minWaitDays"),
-    maxWaitDays: num("maxWaitDays"),
-  };
-
+  const raw = parseTaskFormData(formData);
   const parsed = createTaskSchema.safeParse(raw);
   if (!parsed.success) {
     return {
@@ -108,6 +119,13 @@ export type TaskFormState =
   | { ok: true }
   | null;
 
+/**
+ * Updates a task definition's fields for an org.
+ *
+ * Auth: caller must hold `MANAGE_TASKS` in this org.
+ * Parses raw `FormData`, validates with `updateTaskSchema`, then delegates to
+ * `updateTask`. On success, revalidates both the task list and the edit page.
+ */
 export async function updateTaskAction(
   orgId: string,
   taskId: string,
@@ -120,23 +138,7 @@ export async function updateTaskAction(
   );
   if (!authz.ok) return { ok: false, errors: { _: ["Unauthorized"] } };
 
-  const num = (key: string) => {
-    const v = formData.get(key);
-    if (v === null || v === "") return undefined;
-    const n = Number(v);
-    return isNaN(n) ? undefined : n;
-  };
-
-  const raw = {
-    title: String(formData.get("title") ?? ""),
-    description: formData.get("description") || undefined,
-    durationMin: num("durationMin"),
-    preferredStartTimeMin: num("preferredStartTimeMin"),
-    peopleRequired: num("peopleRequired") ?? 1,
-    minWaitDays: num("minWaitDays"),
-    maxWaitDays: num("maxWaitDays"),
-  };
-
+  const raw = parseTaskFormData(formData);
   const parsed = updateTaskSchema.safeParse(raw);
   if (!parsed.success) {
     return {
@@ -153,6 +155,10 @@ export async function updateTaskAction(
   return { ok: true };
 }
 
+/**
+ * Adds a role to a task's eligibility list (upsert — safe if already present).
+ * Requires `MANAGE_TASKS` permission.
+ */
 export async function addEligibilityAction(
   orgId: string,
   taskId: string,
@@ -170,6 +176,10 @@ export async function addEligibilityAction(
   return { ok: true };
 }
 
+/**
+ * Removes a role from a task's eligibility list.
+ * Requires `MANAGE_TASKS` permission.
+ */
 export async function removeEligibilityAction(
   orgId: string,
   taskId: string,

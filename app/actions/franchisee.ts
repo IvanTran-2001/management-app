@@ -1,5 +1,20 @@
 "use server";
 
+/**
+ * @file franchisee.ts
+ * Server Actions for franchise management.
+ *
+ * All actions require `requireParentOrgOwnerAction` — the caller must be the
+ * owner of a parent org (no `parentId`). Franchisee changes are scoped to
+ * child orgs that belong to that parent.
+ *
+ * generateFranchiseToken   — issues a 7-day single-use invite token tied to an email.
+ * deleteFranchiseToken     — revokes an unused token.
+ * extendFranchiseToken     — extends a token's expiry by 1 day.
+ * removeFranchisee         — detaches a child org from this parent (clears parentId).
+ * changeFranchiseeOwner    — transfers ownership of a child org to a different user.
+ */
+
 import { revalidatePath } from "next/cache";
 import { requireParentOrgOwnerAction } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -53,7 +68,8 @@ export async function deleteFranchiseToken(
   return { ok: true };
 }
 
-/** Extends a franchise token's expiry by 1 day. */
+/** Extends a franchise token's expiry by 1 day from its current expiry
+ * (or from now if the token has already expired). */
 export async function extendFranchiseToken(
   orgId: string,
   tokenId: string,
@@ -81,7 +97,10 @@ export async function extendFranchiseToken(
   return { ok: true };
 }
 
-/** Removes a franchisee from this org (detaches it by clearing parentId). */
+/**
+ * Detaches a franchisee from this parent org by clearing its `parentId`.
+ * The child org continues to exist independently after removal.
+ */
 export async function removeFranchisee(
   orgId: string,
   childOrgId: string,
@@ -99,7 +118,12 @@ export async function removeFranchisee(
   return { ok: true };
 }
 
-/** Changes the owner of a franchisee org (by email). */
+/**
+ * Transfers ownership of a franchisee org to a different user (by email).
+ * The target user must have an account. If they are not yet a member of the
+ * child org, a membership is created automatically. The previous owner's
+ * Owner role is removed. All steps are atomic.
+ */
 export async function changeFranchiseeOwner(
   orgId: string,
   childOrgId: string,
