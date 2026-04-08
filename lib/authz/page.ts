@@ -64,6 +64,14 @@ export async function requireParentOrgOwnerPage(
   return { userId };
 }
 
+/**
+ * Requires the caller to be a member of the org whose role(s) grant
+ * the given permission action.
+ * - Not signed in     → redirects to /signin
+ * - Not a member      → redirects to redirectTo (default: /orgs/[orgId])
+ * - Permission denied → redirects to redirectTo (default: /orgs/[orgId])
+ * - Otherwise         → returns { userId }
+ */
 export async function requireOrgPermissionPage(
   orgId: string,
   permission: PermissionAction,

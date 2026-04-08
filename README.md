@@ -204,6 +204,18 @@ app/
           [taskId]/       # Task detail view
             edit/         # Edit task form
         timetable/        # Weekly timetable, template selector, template editor
+        page.tsx              # Server page: fetches week entries, permissions, roles
+        timetable-client.tsx  # Client root: CalendarView / SimpleView, CalendarEditPopup
+        timetable-actions.tsx # "Actions" dropdown (Apply Template, Templates link)
+        apply-template-dialog.tsx # Modal for selecting and applying a template
+        role-filter-button.tsx    # Role filter dropdown (URL-state driven)
+        _shared/              # Shared grid primitives
+          time-grid.tsx       # Drag-and-drop time grid used by both timetable and template editor
+          task-panel.tsx      # Sidebar panel listing draggable tasks
+          grid-nav.tsx        # Prev/Next week navigation bar
+          grid-utils.ts       # Pure utilities: snap, layout, date helpers
+          types.ts            # Shared TypeScript types (SharedTask, PositionedInstance, …)
+        templates/            # Template list and editor sub-pages
         settings/
           page.tsx        # Redirects to /settings/organization
           organization/   # Org info, timezone, hours, transfer, delete
@@ -218,8 +230,9 @@ app/
     orgs.ts               # createOrg, updateOrgSettings, transferOrgOwnership, deleteOrg, joinFranchise
     memberships.ts        # createMembership, deleteMembership
     tasks.ts              # createTaskAction, deleteTaskAction, updateTaskAction, addEligibilityAction, removeEligibilityAction
-    templates.ts          # createTemplate, updateTemplateEntry, deleteTemplateEntry, etc.
-    franchisee.ts         # generateFranchiseToken, deleteFranchiseToken, removeFranchisee, etc.
+    templates.ts           # createTemplate, updateTemplateEntry, deleteTemplateEntry, applyTemplate, countTimetableEntriesInRange, etc.
+    timetable-entries.ts   # createTimetableEntry, updateTimetableEntry, updateTimetableEntryStatus, deleteTimetableEntry, add/remove assignee
+    franchisee.ts          # generateFranchiseToken, deleteFranchiseToken, extendFranchiseToken, removeFranchisee, changeFranchiseeOwner
     roles.ts              # deleteRoleAction, createRoleAction, updateRoleAction
   api/                    # REST API route handlers (external/mobile clients)
     auth/[...nextauth]/   # Auth.js handler
@@ -271,12 +284,12 @@ lib/
     index.ts            # Re-exports all guards
   services/             # Business logic layer — shared by API routes and Server Actions
     types.ts            # ServiceResult<T> discriminated union
-    orgs.ts             # createOrg, updateOrgSettings, transferOrgOwnership, deleteOrg
+    orgs.ts             # createOrg, updateOrgSettings, transferOrgOwnership, deleteOrg, getOrgTimetableMeta
     memberships.ts      # getMemberships, createMembership, deleteMembership
-    tasks.ts            # getTasks, getTaskById, createTask, deleteTask, updateTask, addTaskEligibility, removeTaskEligibility, setTaskEligibilities
-    task-instances.ts   # getTaskInstances, createTaskInstance, updateTaskInstanceStatus
-    assignees.ts        # getAssignees, createAssignee, deleteAssignee
-    templates.ts        # getTimetableTemplates, getTimetableTemplate, template mutations
+    tasks.ts            # getTasks, getTaskById, createTask, deleteTask, updateTask, add/remove/setTaskEligibility
+    timetable-entries.ts# getTimetableEntries, createTimetableEntry, updateTimetableEntry, deleteTimetableEntry, getWeekTimetableInstances, add/remove assignee
+    assignees.ts        # createAssignee, deleteAssignee, getAssignees (legacy REST API path)
+    templates.ts        # getTimetableTemplates, template mutations, applyTemplate, countTimetableEntriesInRange
     roles.ts            # getRoles, getRoleById, deleteRole, createRole, updateRole
     franchise.ts        # cloneRolesFromParent, cloneTasksFromParent, etc.
   validators/           # Zod schemas for request body validation
@@ -354,6 +367,38 @@ A parent org can spawn franchisee orgs using a one-time invite token flow:
 - **Task table** — `TaskTable` (client component) replaces the old static list. Toolbar has a search input, sort dropdown (name/duration/people), role filter dropdown, and an Actions menu with a "Create" entry. Each row has a `···` menu with **Edit**, **Duplicate**, and **Delete**. Delete opens an `AlertDialog` for confirmation before calling `deleteTaskAction`. Clicking elsewhere on a row navigates to the task detail page. The server page fetches tasks (now with `eligibility` included) and roles in parallel via `Promise.all`.
 - **Roles page** — system roles (Owner, Default Member) show a `system` badge and cannot be deleted. The Owner role also cannot be edited. Custom roles show a `···` menu with Edit and Delete (with AlertDialog confirmation). The create/edit form includes a two-column task eligibility picker: the left panel lists tasks assigned to the role; the right panel lists available tasks. Click `+` / `−` to move tasks between panels. Both panels scroll independently.
 - **Role security** — `createRole` and `updateRole` resolve `taskIds` against `Task` scoped to `orgId` inside the transaction. Any ID belonging to another org causes the transaction to abort with an `INVALID` error, preventing cross-tenant `TaskEligibility` rows. Both also deduplicate incoming `taskIds` and `permissions` with `new Set` before `createMany` to avoid unique-constraint failures.
+
+## Timetable
+
+### Permission gating
+
+| Feature                                               | Required permission |
+| ----------------------------------------------------- | ------------------- |
+| View timetable                                        | `VIEW_TIMETABLE`    |
+| Drag entries, add from task sidebar, Actions dropdown | `MANAGE_TIMETABLE`  |
+| Update a task's status via `···` popup                | any org member      |
+| Full edit (time, assignees, delete) via `···` popup   | `MANAGE_TIMETABLE`  |
+
+### Role filter
+
+A **Filter** dropdown in the toolbar lets users narrow the timetable to tasks whose `TaskEligibility` includes a selected role. The filter is stored in the URL (`?roleId=`) so it persists across week navigation. All roles for the org are listed; clicking an already-selected role clears the filter.
+
+### Skip display
+
+Any `TODO` entry whose local date is before today (org timezone) is displayed as `SKIPPED` in both Calendar and Simple views without mutating the database. This gives a visual indication of overdue tasks; the stored status remains `TODO` until explicitly changed.
+
+### `···` popup (CalendarEditPopup)
+
+Every timetable block has a `···` menu button. Clicking it opens a Dialog:
+
+- **All members** — can update the task's status (TODO / IN_PROGRESS / DONE / SKIPPED).
+- **MANAGE_TIMETABLE holders** — additionally see a time input (move the entry), an assignee list (add/remove members), and a Delete button.
+
+### UTC storage model
+
+Live `TimetableEntry` rows are stored in UTC (`date` = UTC midnight, `startTimeMin`/`endTimeMin` = UTC minutes from that midnight). The server page converts to the org's local timezone before passing instances to the client. Template entries remain in local wall-clock minutes and are converted on `applyTemplate`.
+
+`endTimeMin` is capped at 1440 (= 24:00 midnight) to support 24/7 schedules — tasks that run overnight are split at the UTC day boundary.
 
 ## Status
 
