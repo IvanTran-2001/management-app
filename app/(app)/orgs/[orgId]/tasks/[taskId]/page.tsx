@@ -59,23 +59,16 @@ const ViewTaskPage = async ({ params }: Props) => {
 
   return (
     <>
-      <Toolbar
-        rightChildren={
-          canManage ? (
-            <TaskViewActions
-              orgId={orgId}
-              taskId={taskId}
-              taskName={task.name}
-            />
-          ) : undefined
-        }
-      >
+      <Toolbar>
         <Link
           href={`/orgs/${orgId}/tasks`}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           ← Tasks
         </Link>
+        {canManage && (
+          <TaskViewActions orgId={orgId} taskId={taskId} taskName={task.name} />
+        )}
       </Toolbar>
 
       <div className="max-w-4xl mx-auto flex flex-col gap-6">
@@ -160,12 +153,10 @@ const ViewTaskPage = async ({ params }: Props) => {
                   key={role.id}
                   className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
                 >
-                  {role.color && (
-                    <span
-                      className="inline-block w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: role.color }}
-                    />
-                  )}
+                  <span
+                    className="inline-block w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: role.color }}
+                  />
                   {role.name}
                 </span>
               ))}
