@@ -49,23 +49,23 @@ Provider: PostgreSQL (Supabase), managed via Prisma ORM.
 
 ### Models
 
-| Model                    | Description                                                                                                        |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `Organization`           | Top-level tenant. Owns all other resources. Supports franchise hierarchy via `parentId`.                           |
-| `User`                   | Auth account, identified by email. Linked to orgs via `Membership`.                                                |
-| `Membership`             | Links a `User` to an `Organization`. Tracks `workingDays` and `status` (ACTIVE / RESTRICTED).                      |
-| `Role`                   | Org-scoped role (e.g. Owner, Worker) with a name, color, and stable `key`. System roles have `isDeletable: false`. |
-| `Permission`             | Grants a `PermissionAction` enum value to a `Role`. One row per action per role.                                   |
-| `MemberRole`             | Many-to-many junction between `Membership` and `Role`. A member can hold multiple roles.                           |
-| `Task`                   | Reusable task definition (name, duration, recurrence constraints, eligibility by role).                            |
-| `TaskEligibility`        | Links a `Task` to a `Role`, defining which roles can be assigned to it.                                            |
-| `TimetableEntry`         | A scheduled task occurrence with date, start/end times, status, and assignees.                                     |
-| `TimetableEntryAssignee` | Links a `Membership` to a `TimetableEntry` (many-to-many).                                                         |
-| `TimetableSettings`      | Per-org timetable display preferences (view type, start day, slot duration).                                       |
-| `Template`               | A reusable schedule template with a `cycleLengthDays`. Contains `TemplateEntry` rows.                              |
-| `TemplateEntry`          | One time slot in a `Template` — which task, which day index, start/end times.                                      |
-| `TemplateEntryAssignee`  | Pre-assigns a `Membership` to a `TemplateEntry`.                                                                   |
-| `FranchiseToken`         | One-time invite token issued by a parent org for a franchisee to join.                                             |
+| Model                    | Description                                                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `Organization`           | Top-level tenant. Owns all other resources. Supports franchise hierarchy via `parentId`.                                              |
+| `User`                   | Auth account, identified by email. Linked to orgs via `Membership`.                                                                   |
+| `Membership`             | Links a `User` to an `Organization`. Tracks `workingDays` and `status` (ACTIVE / RESTRICTED).                                         |
+| `Role`                   | Org-scoped role (e.g. Owner, Worker) with a required `name`, `color` (hex), and stable `key`. System roles have `isDeletable: false`. |
+| `Permission`             | Grants a `PermissionAction` enum value to a `Role`. One row per action per role.                                                      |
+| `MemberRole`             | Many-to-many junction between `Membership` and `Role`. A member can hold multiple roles.                                              |
+| `Task`                   | Reusable task definition (name, required `color` hex, duration, recurrence constraints, eligibility by role).                         |
+| `TaskEligibility`        | Links a `Task` to a `Role`, defining which roles can be assigned to it.                                                               |
+| `TimetableEntry`         | A scheduled task occurrence with date, start/end times, status, and assignees.                                                        |
+| `TimetableEntryAssignee` | Links a `Membership` to a `TimetableEntry` (many-to-many).                                                                            |
+| `TimetableSettings`      | Per-org timetable display preferences (view type, start day, slot duration).                                                          |
+| `Template`               | A reusable schedule template with a `cycleLengthDays`. Contains `TemplateEntry` rows.                                                 |
+| `TemplateEntry`          | One time slot in a `Template` — which task, which day index, start/end times.                                                         |
+| `TemplateEntryAssignee`  | Pre-assigns a `Membership` to a `TemplateEntry`.                                                                                      |
+| `FranchiseToken`         | One-time invite token issued by a parent org for a franchisee to join.                                                                |
 
 ### Enums
 
@@ -89,6 +89,22 @@ pnpm prisma generate
 pnpm seed
 ```
 
+#### Migration history
+
+| Migration                                               | Description                                                  |
+| ------------------------------------------------------- | ------------------------------------------------------------ |
+| `20260310032753_init`                                   | Initial schema                                               |
+| `20260311073626_add_timestamps`                         | Add `createdAt`/`updatedAt` to all models                    |
+| `20260312054457_add_nextauth_models`                    | Add Auth.js `Account`, `Session`, `VerificationToken` models |
+| `20260312083202_add_role_key`                           | Add stable `key` field to `Role`                             |
+| `20260313020753_add_email_verified`                     | Add `emailVerified` to `User`                                |
+| `20260319000001_rename_taskcycle_to_timetable_template` | Rename TaskCycle → Template throughout                       |
+| `20260323020149_add_org_timezone`                       | Add `timezone` field to `Organization`                       |
+| `20260326075645_new_schema`                             | Major schema restructure                                     |
+| `20260327101836_add_org_operating_days`                 | Add `operatingDays` array to `Organization`                  |
+| `20260328013902_fix_template_entry_task_cascade`        | Fix cascade delete on `TemplateEntry` → `Task`               |
+| `20260409102531_require_colors`                         | Make `Role.color` and `Task.color` non-nullable              |
+
 ## Authentication
 
 Authentication is handled by **Auth.js v5 (NextAuth)** with **Google OAuth** as the provider.
@@ -111,7 +127,7 @@ Auth.js config is intentionally split into two files:
 
 This is required because Next.js middleware runs on the **Edge runtime**, which cannot import Node.js modules like `@prisma/client`.
 
-`proxy.ts` contains the auth middleware. It uses the edge-compatible `authConfig` to protect matched routes without hitting the database.
+`proxy.ts` is the auth middleware. It uses the edge-compatible `authConfig` to protect matched routes without hitting the database, and forwards the current pathname as an `x-pathname` request header so the server-rendered breadcrumb can read it without `usePathname()`.
 
 ### Authorization model
 
@@ -199,110 +215,108 @@ app/
       [orgId]/
         page.tsx          # Org overview
         franchisee/       # Franchise management (parent org owners only)
-        memberships/      # Members list + invite new member
+        memberships/      # Members list, search, role filter, invite new member
+          [memberId]/     # Member detail view (view-only, roles, working days, status)
+            page.tsx
+            edit/         # Edit member form (working days, roles)
+            _components/
+              member-toolbar-actions.tsx  # Restrict/Unrestrict + Delete confirm dialogs
+          _components/
+            members-view.tsx        # Client component: toolbar, search/filter, list↔card toggle
+            member-form.tsx         # Shared create/edit form (email, working days, RolePicker)
+            role-picker.tsx         # Searchable role input — selecting auto-adds, no + button
         tasks/            # Task definition list + create form
-          [taskId]/       # Task detail view
-            edit/         # Edit task form
+          [taskId]/       # Task detail view (links from timetable)
+            edit/         # Edit task form (includes color picker)
+          task-form.tsx   # Shared create/edit form — title, color picker, fields, eligibility
         timetable/        # Weekly timetable, template selector, template editor
-        page.tsx              # Server page: fetches week entries, permissions, roles
-        timetable-client.tsx  # Client root: CalendarView / SimpleView, CalendarEditPopup
-        timetable-actions.tsx # "Actions" dropdown (Apply Template, Templates link)
-        apply-template-dialog.tsx # Modal for selecting and applying a template
-        role-filter-button.tsx    # Role filter dropdown (URL-state driven)
-        _shared/              # Shared grid primitives
-          time-grid.tsx       # Drag-and-drop time grid used by both timetable and template editor
-          task-panel.tsx      # Sidebar panel listing draggable tasks
-          grid-nav.tsx        # Prev/Next week navigation bar
-          grid-utils.ts       # Pure utilities: snap, layout, date helpers
-          types.ts            # Shared TypeScript types (SharedTask, PositionedInstance, …)
-        templates/            # Template list and editor sub-pages
+          page.tsx              # Server page: fetches week entries, permissions, roles
+          timetable-client.tsx  # Client root: CalendarView / SimpleView, CalendarEditPopup
+          timetable-actions.tsx # "Actions" dropdown (Apply Template, Templates link)
+          apply-template-dialog.tsx  # Modal for selecting and applying a template
+          role-filter-button.tsx     # Role filter dropdown (URL-state driven)
+          _shared/              # Shared grid primitives
+            time-grid.tsx       # Drag-and-drop time grid
+            task-panel.tsx      # Sidebar panel listing draggable tasks
+            grid-utils.ts       # Pure utilities: snap, layout, date helpers
+            types.ts            # Shared TypeScript types
+          templates/            # Template list and editor sub-pages
         settings/
           page.tsx        # Redirects to /settings/organization
           organization/   # Org info, timezone, hours, transfer, delete
           roles/          # Role list, create, edit (MANAGE_ROLES)
-            new/          # Create role form
+            new/          # Create role form (name, color, permissions, task eligibility)
             [roleId]/edit/# Edit role form
           timetable/      # Timetable display settings (stub)
           notification/   # Notification preferences (stub)
   (auth)/
     signin/               # Google OAuth sign-in page
   actions/                # Server Actions (web UI mutations)
-    orgs.ts               # createOrg, updateOrgSettings, transferOrgOwnership, deleteOrg, joinFranchise
-    memberships.ts        # createMembership, deleteMembership
-    tasks.ts              # createTaskAction, deleteTaskAction, updateTaskAction, addEligibilityAction, removeEligibilityAction
-    templates.ts           # createTemplate, updateTemplateEntry, deleteTemplateEntry, applyTemplate, countTimetableEntriesInRange, etc.
-    timetable-entries.ts   # createTimetableEntry, updateTimetableEntry, updateTimetableEntryStatus, deleteTimetableEntry, add/remove assignee
-    franchisee.ts          # generateFranchiseToken, deleteFranchiseToken, extendFranchiseToken, removeFranchisee, changeFranchiseeOwner
-    roles.ts              # deleteRoleAction, createRoleAction, updateRoleAction
+    orgs.ts
+    memberships.ts
+    tasks.ts              # createTaskAction, updateTaskAction — both require color hex
+    templates.ts
+    timetable-entries.ts
+    franchisee.ts
+    roles.ts
   api/                    # REST API route handlers (external/mobile clients)
-    auth/[...nextauth]/   # Auth.js handler
+    auth/[...nextauth]/
     orgs/
-      route.ts            # POST /api/orgs
+      route.ts
       [orgId]/
-        is-parent-owner/  # GET — check if current user is parent org owner
-        memberships/      # GET, POST, DELETE
-        tasks/            # GET, POST, DELETE
-        task-instances/   # GET, POST
+        is-parent-owner/
+        memberships/
+        tasks/
+        task-instances/
           [taskInstanceId]/
-            route.ts      # GET
-            assignees/    # GET, POST, DELETE
-            status/       # PATCH
+            route.ts
+            assignees/
+            status/
 
 components/
   layout/
-    navbar.tsx                  # Top bar (server component) — sidebar toggle, org switcher, user menu
-    navbar-context-actions.tsx  # Route-aware action buttons (client boundary)
-    page-header.tsx             # Breadcrumb bar (client component, auto-builds from pathname)
-    sidebar.tsx                 # Dynamic collapsible nav (client component)
+    navbar.tsx                  # Top bar (server component)
+    navbar-context-actions.tsx  # Route-aware action buttons
+    page-header.tsx             # Breadcrumb bar — async server component; resolves IDs to names via Prisma
+    sidebar.tsx                 # Collapsible nav; Progress item is disabled (opacity, pointer-events-none)
     org-switcher.tsx            # Org selector dropdown
-    toolbar.tsx                 # Sticky sub-header with optional Actions dropdown
-    actions/                    # Per-page action button components
+    toolbar.tsx                 # Sticky sub-header
+    actions/
       tasks-actions.tsx
       members-actions.tsx
   ui/                           # shadcn/ui + Radix UI primitives
-    alert-dialog.tsx
-    button.tsx
-    card.tsx
-    dropdown-menu.tsx
-    input.tsx
-    separator.tsx
-    sheet.tsx
-    sidebar.tsx
-    skeleton.tsx
-    timezone-select.tsx
-    tooltip.tsx
 
 lib/
-  prisma.ts             # Prisma client singleton
-  rbac.ts               # Well-known role key constants (OWNER, DEFAULT_MEMBER)
-  utils.ts              # cn() and general utilities
+  prisma.ts
+  rbac.ts               # ROLE_KEYS constants (OWNER, DEFAULT_MEMBER)
+  utils.ts
   authz/
-    _shared.ts          # Low-level DB helpers (getAuthUserId, getOrgMembership, memberHasPermission)
-    api.ts              # Guards for API route handlers → { ok, response }
-    page.ts             # Guards for server pages → redirect()
-    action.ts           # Guards for server actions → { ok }
-    index.ts            # Re-exports all guards
-  services/             # Business logic layer — shared by API routes and Server Actions
-    types.ts            # ServiceResult<T> discriminated union
-    orgs.ts             # createOrg, updateOrgSettings, transferOrgOwnership, deleteOrg, getOrgTimetableMeta
-    memberships.ts      # getMemberships, createMembership, deleteMembership
-    tasks.ts            # getTasks, getTaskById, createTask, deleteTask, updateTask, add/remove/setTaskEligibility
-    timetable-entries.ts# getTimetableEntries, createTimetableEntry, updateTimetableEntry, deleteTimetableEntry, getWeekTimetableInstances, add/remove assignee
-    assignees.ts        # createAssignee, deleteAssignee, getAssignees (legacy REST API path)
-    templates.ts        # getTimetableTemplates, template mutations, applyTemplate, countTimetableEntriesInRange
-    roles.ts            # getRoles, getRoleById, deleteRole, createRole, updateRole
-    franchise.ts        # cloneRolesFromParent, cloneTasksFromParent, etc.
-  validators/           # Zod schemas for request body validation
+    _shared.ts
+    api.ts
+    page.ts
+    action.ts
+    index.ts
+  services/
+    types.ts
+    orgs.ts
+    memberships.ts      # updateMembership rejects any roleId whose key === "owner"
+    tasks.ts            # createTask / updateTask both require and persist color
+    timetable-entries.ts
+    assignees.ts
+    templates.ts
+    roles.ts
+    franchise.ts
+  validators/
     org.ts
     membership.ts
-    task.ts
+    task.ts             # createTaskSchema / updateTaskSchema require color: /^#[0-9a-fA-F]{6}$/
     task-instance.ts
     assignee.ts
-    role.ts             # roleFormSchema — name, color, permissions, taskIds
+    role.ts
 
 prisma/
-  schema.prisma         # Database schema
-  seed.ts               # Dev seed data
+  schema.prisma         # Role.color String (non-nullable), Task.color String (non-nullable)
+  seed.ts               # 8 users · 3 orgs · 4 roles each · 6 tasks each · 5 members each
 ```
 
 ## Server Actions vs API Routes
@@ -320,30 +334,32 @@ Server Actions call `revalidatePath` to invalidate the Next.js cache so server-r
 
 ## Pages
 
-| Route                                            | Guard                                      | Description                                                                                                     |
-| ------------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `/`                                              | Signed in                                  | Home                                                                                                            |
-| `/signin`                                        | —                                          | Google OAuth sign-in                                                                                            |
-| `/orgs/new`                                      | Signed in                                  | Create a new organization                                                                                       |
-| `/orgs/[orgId]`                                  | `requireOrgMemberPage`                     | Org overview                                                                                                    |
-| `/orgs/[orgId]/franchisee`                       | `requireParentOrgOwnerPage`                | Franchise management — invite tokens + franchisee list                                                          |
-| `/orgs/[orgId]/tasks`                            | `requireOrgMemberPage`                     | Task definition list — searchable/sortable table with role filter and per-row actions (edit, duplicate, delete) |
-| `/orgs/[orgId]/tasks/new`                        | `requireOrgPermissionPage MANAGE_TASKS`    | Create a new task definition with role eligibility selector                                                     |
-| `/orgs/[orgId]/tasks/[taskId]`                   | `requireOrgMemberPage`                     | Task detail view — fields, eligible roles, Actions menu (edit/delete) for `MANAGE_TASKS` holders                |
-| `/orgs/[orgId]/tasks/[taskId]/edit`              | `requireOrgPermissionPage MANAGE_TASKS`    | Edit a task definition's fields and role eligibility                                                            |
-| `/orgs/[orgId]/memberships`                      | `requireOrgMemberPage`                     | Member list                                                                                                     |
-| `/orgs/[orgId]/memberships/new`                  | `requireOrgPermissionPage MANAGE_MEMBERS`  | Invite a new member by email                                                                                    |
-| `/orgs/[orgId]/timetable`                        | `requireOrgMemberPage`                     | Timetable — calendar or simple mode, week navigation                                                            |
-| `/orgs/[orgId]/timetable/templates`              | `requireOrgMemberPage`                     | Timetable template list                                                                                         |
-| `/orgs/[orgId]/timetable/templates/new`          | `requireOrgMemberPage`                     | Create a new timetable template                                                                                 |
-| `/orgs/[orgId]/timetable/templates/[templateId]` | `requireOrgMemberPage`                     | Template editor — drag-and-drop schedule builder                                                                |
-| `/orgs/[orgId]/settings`                         | —                                          | Redirects to `/settings/organization`                                                                           |
-| `/orgs/[orgId]/settings/organization`            | `requireOrgPermissionPage MANAGE_SETTINGS` | Org info, timezone, hours, transfer, delete                                                                     |
-| `/orgs/[orgId]/settings/roles`                   | `requireOrgPermissionPage MANAGE_ROLES`    | Role list + delete custom roles                                                                                 |
-| `/orgs/[orgId]/settings/roles/new`               | `requireOrgPermissionPage MANAGE_ROLES`    | Create a new custom role                                                                                        |
-| `/orgs/[orgId]/settings/roles/[roleId]/edit`     | `requireOrgPermissionPage MANAGE_ROLES`    | Edit a custom role's name, color, permissions, and task eligibility                                             |
-| `/orgs/[orgId]/settings/timetable`               | —                                          | Timetable display settings (stub)                                                                               |
-| `/orgs/[orgId]/settings/notification`            | —                                          | Notification preferences (stub)                                                                                 |
+| Route                                            | Guard                                      | Description                                                                           |
+| ------------------------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `/`                                              | Signed in                                  | Home                                                                                  |
+| `/signin`                                        | —                                          | Google OAuth sign-in                                                                  |
+| `/orgs/new`                                      | Signed in                                  | Create a new organization                                                             |
+| `/orgs/[orgId]`                                  | `requireOrgMemberPage`                     | Org overview                                                                          |
+| `/orgs/[orgId]/franchisee`                       | `requireParentOrgOwnerPage`                | Franchise management — invite tokens + franchisee list                                |
+| `/orgs/[orgId]/tasks`                            | `requireOrgMemberPage`                     | Task definition list — searchable/sortable table with role filter and per-row actions |
+| `/orgs/[orgId]/tasks/new`                        | `requireOrgPermissionPage MANAGE_TASKS`    | Create task — includes color picker                                                   |
+| `/orgs/[orgId]/tasks/[taskId]`                   | `requireOrgMemberPage`                     | Task detail view; clicking a task name in the timetable navigates here                |
+| `/orgs/[orgId]/tasks/[taskId]/edit`              | `requireOrgPermissionPage MANAGE_TASKS`    | Edit task — color picker pre-filled with current color                                |
+| `/orgs/[orgId]/memberships`                      | `requireOrgMemberPage`                     | Member list                                                                           |
+| `/orgs/[orgId]/memberships/new`                  | `requireOrgPermissionPage MANAGE_MEMBERS`  | Invite a new member by email                                                          |
+| `/orgs/[orgId]/memberships/[memberId]`           | `requireOrgMemberPage`                     | Member detail view — avatar, roles (multi-badge), working days, status, join date     |
+| `/orgs/[orgId]/memberships/[memberId]/edit`      | `requireOrgPermissionPage MANAGE_MEMBERS`  | Edit member — working days, roles (owner role excluded from picker)                   |
+| `/orgs/[orgId]/timetable`                        | `requireOrgMemberPage`                     | Timetable — calendar or simple mode, week navigation                                  |
+| `/orgs/[orgId]/timetable/templates`              | `requireOrgMemberPage`                     | Timetable template list                                                               |
+| `/orgs/[orgId]/timetable/templates/new`          | `requireOrgMemberPage`                     | Create a new timetable template                                                       |
+| `/orgs/[orgId]/timetable/templates/[templateId]` | `requireOrgMemberPage`                     | Template editor — drag-and-drop schedule builder                                      |
+| `/orgs/[orgId]/settings`                         | —                                          | Redirects to `/settings/organization`                                                 |
+| `/orgs/[orgId]/settings/organization`            | `requireOrgPermissionPage MANAGE_SETTINGS` | Org info, timezone, hours, transfer, delete                                           |
+| `/orgs/[orgId]/settings/roles`                   | `requireOrgPermissionPage MANAGE_ROLES`    | Role list + delete custom roles                                                       |
+| `/orgs/[orgId]/settings/roles/new`               | `requireOrgPermissionPage MANAGE_ROLES`    | Create a new custom role (name, color, permissions, task eligibility)                 |
+| `/orgs/[orgId]/settings/roles/[roleId]/edit`     | `requireOrgPermissionPage MANAGE_ROLES`    | Edit a custom role                                                                    |
+| `/orgs/[orgId]/settings/timetable`               | —                                          | Timetable display settings (stub)                                                     |
+| `/orgs/[orgId]/settings/notification`            | —                                          | Notification preferences (stub)                                                       |
 
 All `/orgs/[orgId]/*` pages are guarded by at least `requireOrgMemberPage` — users not in the org are redirected.
 
@@ -359,14 +375,20 @@ A parent org can spawn franchisee orgs using a one-time invite token flow:
 
 ## UI Notes
 
-- **Sidebar active state** — uses prefix matching so nested pages (e.g. `/tasks/new`) correctly highlight the parent nav item. The Org Overview item uses exact matching to avoid lighting up on every org page.
-- **Breadcrumb** — `PageHeader` auto-builds a breadcrumb from the current pathname using a segment label map. No per-page configuration needed.
-- **Form validation** — server-action errors are rendered inline next to each field with `aria-invalid` / `aria-describedby` for accessibility, plus a Sonner toast summary.
-- **Timetable** — the server page fetches the week's entries (scoped to `date` in `[monday, monday+7)`) and passes them to `TimetableClient`. The client handles Calendar / Simple mode toggle, Prev/Next week navigation via `?week=` and `?mode=` params. Calendar view uses absolute positioning to render task blocks by time; overlapping tasks are assigned side-by-side columns. Status colours: gray = TODO, amber = IN_PROGRESS, green = DONE, red = SKIPPED.
-- **Template editor** — `TemplateEditorClient` renders a drag-and-drop grid over the org's operating hours. Entries can be added, moved, resized, and assigned to members.
-- **Task table** — `TaskTable` (client component) replaces the old static list. Toolbar has a search input, sort dropdown (name/duration/people), role filter dropdown, and an Actions menu with a "Create" entry. Each row has a `···` menu with **Edit**, **Duplicate**, and **Delete**. Delete opens an `AlertDialog` for confirmation before calling `deleteTaskAction`. Clicking elsewhere on a row navigates to the task detail page. The server page fetches tasks (now with `eligibility` included) and roles in parallel via `Promise.all`.
-- **Roles page** — system roles (Owner, Default Member) show a `system` badge and cannot be deleted. The Owner role also cannot be edited. Custom roles show a `···` menu with Edit and Delete (with AlertDialog confirmation). The create/edit form includes a two-column task eligibility picker: the left panel lists tasks assigned to the role; the right panel lists available tasks. Click `+` / `−` to move tasks between panels. Both panels scroll independently.
-- **Role security** — `createRole` and `updateRole` resolve `taskIds` against `Task` scoped to `orgId` inside the transaction. Any ID belonging to another org causes the transaction to abort with an `INVALID` error, preventing cross-tenant `TaskEligibility` rows. Both also deduplicate incoming `taskIds` and `permissions` with `new Set` before `createMany` to avoid unique-constraint failures.
+- **Breadcrumb** — `PageHeader` is an **async server component**. It reads the current URL from the `x-pathname` header set by `proxy.ts` middleware and resolves dynamic id segments to human-readable names via Prisma (task name, user name, role name, template name). No client-side `usePathname()` needed.
+- **Sidebar** — The Progress nav item is disabled (`opacity-40 cursor-not-allowed pointer-events-none`). Active state uses prefix matching; Overview uses exact matching.
+- **Colors required** — Both `Role.color` and `Task.color` are non-nullable in the schema and enforced by Zod validators (`/^#[0-9a-fA-F]{6}$/`). Create and edit forms render a native `<input type="color">` with a hex label. The color is submitted as a hidden `<input name="color">` so it flows through `FormData`.
+- **Task form color picker** — Lazy `useState(() => dv?.color ?? randomHex())` initializer prevents React purity errors on random defaults.
+- **Member pages** — Split into view (`[memberId]/page.tsx`) and edit (`[memberId]/edit/page.tsx`) routes. Both share `MemberForm`. The toolbar on the detail page provides Edit and an Actions ▼ dropdown (Restrict / Unrestrict / Delete with confirm dialogs).
+- **Role picker** — Searchable text input with a dropdown. Selecting a role auto-adds it; no `+` button. The owner role is never shown in the picker (filtered in the edit page query and enforced in the service layer).
+- **Owner role guard** — Three layers: (1) DB query filters it from `allRoles` on the edit page, (2) `updateMembership` rejects any `roleId` whose key is `"owner"`, (3) the new-member query uses `NOT: { key: "owner" }`.
+- **Clicking tasks in timetable** — In Calendar view the task title inside each block is a `<Link>` to the task detail page. In Simple (table) view the task name cell is a `<Link>`; clicking elsewhere in the row still opens the edit popup.
+- **Form validation** — server-action errors rendered inline with `aria-invalid`/`aria-describedby` plus a Sonner toast summary.
+- **Timetable** — Calendar and Simple mode toggle, week navigation via `?week=` and `?mode=` params. Calendar view uses absolute positioning for task blocks; overlapping tasks get side-by-side columns. Status colours: gray = TODO, amber = IN_PROGRESS, green = DONE, red = SKIPPED.
+- **Template editor** — Drag-and-drop grid over org operating hours. Entries can be added, moved, and assigned.
+- **Task table** — `TaskTable` client component: search, sort (name/duration/people), role filter, row `···` menu (Edit / Duplicate / Delete with confirm). Clicking the row navigates to the task detail page.
+- **Roles page** — System roles show a `system` badge and cannot be deleted; Owner also cannot be edited. Custom roles have a `···` menu with Edit and Delete (AlertDialog). Role create/edit form has a two-column task eligibility picker.
+- **Role security** — `createRole` and `updateRole` validate `taskIds` against tasks scoped to `orgId` inside a transaction. Cross-tenant IDs abort the transaction with an `INVALID` error.
 
 ## Timetable
 
@@ -381,27 +403,41 @@ A parent org can spawn franchisee orgs using a one-time invite token flow:
 
 ### Role filter
 
-A **Filter** dropdown in the toolbar lets users narrow the timetable to tasks whose `TaskEligibility` includes a selected role. The filter is stored in the URL (`?roleId=`) so it persists across week navigation. All roles for the org are listed; clicking an already-selected role clears the filter.
+A **Filter** dropdown in the toolbar lets users narrow the timetable to tasks whose `TaskEligibility` includes a selected role. The filter is stored in the URL (`?roleId=`) so it persists across week navigation.
 
 ### Skip display
 
-Any `TODO` entry whose local date is before today (org timezone) is displayed as `SKIPPED` in both Calendar and Simple views without mutating the database. This gives a visual indication of overdue tasks; the stored status remains `TODO` until explicitly changed.
+Any `TODO` entry whose local date is before today (org timezone) is displayed as `SKIPPED` in both Calendar and Simple views without mutating the database.
 
 ### `···` popup (CalendarEditPopup)
 
 Every timetable block has a `···` menu button. Clicking it opens a Dialog:
 
-- **All members** — can update the task's status (TODO / IN_PROGRESS / DONE / SKIPPED).
-- **MANAGE_TIMETABLE holders** — additionally see a time input (move the entry), an assignee list (add/remove members), and a Delete button.
+- **All members** — can update the task's status.
+- **MANAGE_TIMETABLE holders** — additionally see a time input, an assignee list, and a Delete button.
 
 ### UTC storage model
 
 Live `TimetableEntry` rows are stored in UTC (`date` = UTC midnight, `startTimeMin`/`endTimeMin` = UTC minutes from that midnight). The server page converts to the org's local timezone before passing instances to the client. Template entries remain in local wall-clock minutes and are converted on `applyTemplate`.
 
-`endTimeMin` is capped at 1440 (= 24:00 midnight) to support 24/7 schedules — tasks that run overnight are split at the UTC day boundary.
+`endTimeMin` is capped at 1440 (= 24:00 midnight) to support 24/7 schedules.
+
+## Seed Data
+
+The dev seed (`pnpm seed`) creates 3 sample organizations each with realistic data:
+
+| Org            | Owner  | Members                       | Custom roles                  | Tasks |
+| -------------- | ------ | ----------------------------- | ----------------------------- | ----- |
+| Donut Shop A   | Ivan   | Jordan, Casey, Riley, Alex    | Fryer Operator, Counter Staff | 6     |
+| Coffee House B | Ivan   | Riley, Morgan, Jordan, Taylor | Head Barista, Kitchen Hand    | 6     |
+| Bakery C       | Jordan | Casey, Riley, Morgan, Sam     | Head Baker, Pastry Chef       | 6     |
+
+All orgs also have Owner and Default Member system roles. Members can hold multiple roles. Each org has a timetable template and ~14 historical timetable entries plus today and tomorrow entries.
+
+Users: Ivan, Jordan, Casey, Riley, Morgan, Alex, Taylor, Sam.
 
 ## Status
 
-Work in progress. Fully implemented: service layer, REST API, auth, member management, task management, timetable view, timetable templates, org settings, role management (list, create, edit, delete, task eligibility), franchise management.
+Work in progress. Fully implemented: service layer, REST API, auth, member management (list, view, edit, restrict, delete), task management (list, view, create, edit with color), timetable view (calendar + simple, task links), timetable templates, org settings, role management (list, create, edit, delete, task eligibility, color), franchise management, required colors on tasks and roles, async breadcrumbs with name resolution.
 
 Not yet started: schedule generation (automatic cycle-based rotation), worker "Today" checklist, completion stats, timetable/notification settings pages.

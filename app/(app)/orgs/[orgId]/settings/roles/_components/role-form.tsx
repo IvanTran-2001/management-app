@@ -47,8 +47,8 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
   const [isPending, startTransition] = useTransition();
 
   const [name, setName] = useState(role?.name ?? "");
-  const [useColor, setUseColor] = useState(!!role?.color);
-  const [color, setColor] = useState(role?.color ?? "#6366f1");
+  const [useColor, setUseColor] = useState(true);
+  const [color, setColor] = useState(() => role?.color ?? "#6366f1");
   const [permissions, setPermissions] = useState<PermissionAction[]>(
     role?.permissions.map((p) => p.action) ?? [],
   );
@@ -82,7 +82,7 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
 
     const data = {
       name,
-      color: useColor ? color : undefined,
+      color: useColor ? color : "#6366f1",
       permissions,
       taskIds: eligibleTaskIds,
     };
@@ -128,8 +128,7 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
             disabled={isPending}
             className="h-4 w-4 rounded"
           />
-          Role color
-          <span className="text-muted-foreground font-normal">(optional)</span>
+          Use custom color
         </label>
         {useColor && (
           <input
