@@ -67,11 +67,7 @@ const ViewTaskPage = async ({ params }: Props) => {
           ← Tasks
         </Link>
         {canManage && (
-          <TaskViewActions
-            orgId={orgId}
-            taskId={taskId}
-            taskName={task.name}
-          />
+          <TaskViewActions orgId={orgId} taskId={taskId} taskName={task.name} />
         )}
       </Toolbar>
 
@@ -157,12 +153,10 @@ const ViewTaskPage = async ({ params }: Props) => {
                   key={role.id}
                   className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs"
                 >
-                  {role.color && (
-                    <span
-                      className="inline-block w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: role.color }}
-                    />
-                  )}
+                  <span
+                    className="inline-block w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: role.color }}
+                  />
                   {role.name}
                 </span>
               ))}

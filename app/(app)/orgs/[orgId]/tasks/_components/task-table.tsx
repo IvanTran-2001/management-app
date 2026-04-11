@@ -165,7 +165,10 @@ export function TaskTable({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               {SORT_OPTIONS.map((o) => (
-                <DropdownMenuItem key={o.value} onClick={() => setSort(o.value)}>
+                <DropdownMenuItem
+                  key={o.value}
+                  onClick={() => setSort(o.value)}
+                >
                   {o.label}
                 </DropdownMenuItem>
               ))}

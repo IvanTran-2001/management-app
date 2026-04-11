@@ -7,9 +7,13 @@
 import { z } from "zod";
 import { EntryStatus } from "@prisma/client";
 
+const hexColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Must be a valid hex color");
+
 export const createTaskSchema = z
   .object({
-    color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Must be a valid hex color"),
+    color: hexColorSchema,
     title: z.string().min(1).max(200),
     description: z.string().max(5000).optional(),
     durationMin: z
@@ -60,7 +64,7 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 
 export const updateTaskSchema = z
   .object({
-    color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Must be a valid hex color"),
+    color: hexColorSchema,
     title: z.string().min(1).max(200),
     description: z.string().max(5000).optional(),
     durationMin: z

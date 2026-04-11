@@ -87,7 +87,9 @@ export function MemberForm({
         });
         if (!result.ok) {
           setErrors(
-            result.field ? { [result.field]: result.error } : { _: result.error },
+            result.field
+              ? { [result.field]: result.error }
+              : { _: result.error },
           );
           return;
         }

@@ -39,6 +39,7 @@ async function resolveLabel(
   seg: string,
   index: number,
   segments: string[],
+  orgId: string | null,
 ): Promise<string> {
   if (seg in SEGMENT_LABELS) return SEGMENT_LABELS[seg];
   if (!looksLikeId(seg)) return seg;
@@ -47,26 +48,26 @@ async function resolveLabel(
 
   try {
     if (parent === "tasks") {
-      const t = await prisma.task.findUnique({
-        where: { id: seg },
+      const t = await prisma.task.findFirst({
+        where: { id: seg, orgId: orgId ?? undefined },
         select: { name: true },
       });
       if (t) return t.name;
-    } else if (parent === "memberships") {
-      const u = await prisma.user.findUnique({
-        where: { id: seg },
-        select: { name: true },
+    } else if (parent === "memberships" && orgId) {
+      const m = await prisma.membership.findFirst({
+        where: { orgId, userId: seg },
+        include: { user: { select: { name: true } } },
       });
-      if (u) return u.name ?? seg;
+      if (m?.user?.name) return m.user.name;
     } else if (parent === "roles") {
-      const r = await prisma.role.findUnique({
-        where: { id: seg },
+      const r = await prisma.role.findFirst({
+        where: { id: seg, orgId: orgId ?? undefined },
         select: { name: true },
       });
       if (r) return r.name;
     } else if (parent === "templates") {
-      const t = await prisma.template.findUnique({
-        where: { id: seg },
+      const t = await prisma.template.findFirst({
+        where: { id: seg, orgId: orgId ?? undefined },
         select: { name: true },
       });
       if (t) return t.name;
@@ -108,7 +109,7 @@ export async function PageHeader() {
 
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
-      const label = await resolveLabel(seg, i, segments);
+      const label = await resolveLabel(seg, i, segments, orgId);
       const isLast = i === segments.length - 1;
       const href = isLast
         ? undefined
@@ -146,4 +147,3 @@ export async function PageHeader() {
     </div>
   );
 }
-

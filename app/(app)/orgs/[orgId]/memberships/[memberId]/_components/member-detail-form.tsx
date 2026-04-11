@@ -29,6 +29,7 @@ import {
   deleteMembershipAction,
   setMemberStatusAction,
 } from "@/app/actions/memberships";
+import { RolePicker } from "../../_components/role-picker";
 
 const DAYS = [
   { key: "mon", label: "Mon" },
@@ -50,7 +51,7 @@ interface MemberDetailFormProps {
   image: string | null;
   joinedAt: Date;
   workingDays: string[];
-  currentRoleId: string | null;
+  roleIds: string[];
   status: "ACTIVE" | "RESTRICTED";
   roles: Role[];
   canManage: boolean;
@@ -68,7 +69,7 @@ export function MemberDetailForm({
   image,
   joinedAt,
   workingDays: initialWorkingDays,
-  currentRoleId: initialRoleId,
+  roleIds: initialRoleIds,
   status,
   roles,
   canManage,
@@ -79,7 +80,7 @@ export function MemberDetailForm({
   const [restrictOpen, setRestrictOpen] = useState(false);
 
   const [workingDays, setWorkingDays] = useState<string[]>(initialWorkingDays);
-  const [roleId, setRoleId] = useState<string>(initialRoleId ?? "");
+  const [roleIds, setRoleIds] = useState<string[]>(initialRoleIds);
   const [error, setError] = useState<string | null>(null);
 
   function toggleDay(day: string) {
@@ -89,11 +90,20 @@ export function MemberDetailForm({
   }
 
   function handleSave() {
-    if (!roleId) { setError("Please select a role."); return; }
+    if (roleIds.length === 0) {
+      setError("Please select at least one role.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
-      const result = await updateMembershipAction(orgId, userId, { workingDays, roleIds: roleId ? [roleId] : [] });
-      if (!result.ok) { setError(result.error); return; }
+      const result = await updateMembershipAction(orgId, userId, {
+        workingDays,
+        roleIds,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -114,7 +124,10 @@ export function MemberDetailForm({
     const next = status === "ACTIVE" ? "RESTRICTED" : "ACTIVE";
     startTransition(async () => {
       const result = await setMemberStatusAction(orgId, userId, next);
-      if (!result.ok) { setError(result.error); return; }
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -161,25 +174,29 @@ export function MemberDetailForm({
       </Toolbar>
 
       <div className="max-w-3xl mx-auto flex flex-col gap-6">
-        {error && (
-          <p className="text-sm text-destructive">{error}</p>
-        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="rounded-xl border bg-card p-6 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8">
           {/* Left: fields */}
           <dl className="flex flex-col gap-5">
             <div>
-              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Full Name</dt>
+              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                Full Name
+              </dt>
               <dd className="text-sm font-medium">{name ?? "—"}</dd>
             </div>
 
             <div>
-              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Email</dt>
+              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                Email
+              </dt>
               <dd className="text-sm">{email}</dd>
             </div>
 
             <div>
-              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Working Days</dt>
+              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
+                Working Days
+              </dt>
               <dd className="flex flex-wrap gap-2">
                 {DAYS.map(({ key, label }) => (
                   <button
@@ -188,9 +205,10 @@ export function MemberDetailForm({
                     disabled={!canManage}
                     onClick={() => toggleDay(key)}
                     className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors
-                      ${workingDays.includes(key)
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border text-muted-foreground hover:bg-muted"
+                      ${
+                        workingDays.includes(key)
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border text-muted-foreground hover:bg-muted"
                       }
                       disabled:pointer-events-none`}
                   >
@@ -201,29 +219,31 @@ export function MemberDetailForm({
             </div>
 
             <div>
-              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Role</dt>
+              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                Roles
+              </dt>
               <dd>
                 {canManage ? (
-                  <select
-                    value={roleId}
-                    onChange={(e) => setRoleId(e.target.value)}
-                    className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <option value="">Select a role…</option>
-                    {roles.map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
+                  <RolePicker
+                    allRoles={roles}
+                    selectedIds={roleIds}
+                    onChange={setRoleIds}
+                  />
                 ) : (
                   <span className="text-sm">
-                    {roles.find((r) => r.id === roleId)?.name ?? "—"}
+                    {roles
+                      .filter((r) => roleIds.includes(r.id))
+                      .map((r) => r.name)
+                      .join(", ") || "—"}
                   </span>
                 )}
               </dd>
             </div>
 
             <div>
-              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Status</dt>
+              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                Status
+              </dt>
               <dd>
                 {isRestricted ? (
                   <span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive ring-1 ring-destructive/20 ring-inset">
@@ -236,7 +256,9 @@ export function MemberDetailForm({
             </div>
 
             <div>
-              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Join Date</dt>
+              <dt className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                Join Date
+              </dt>
               <dd className="text-sm text-muted-foreground">
                 {new Date(joinedAt).toLocaleDateString("en-AU", {
                   day: "numeric",
@@ -278,9 +300,11 @@ export function MemberDetailForm({
             <AlertDialogTitle>Remove member?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove{" "}
-              <span className="font-medium text-foreground">{name ?? "this member"}</span>{" "}
-              from the org? They will be unassigned from all tasks they are currently
-              assigned to.
+              <span className="font-medium text-foreground">
+                {name ?? "this member"}
+              </span>{" "}
+              from the org? They will be unassigned from all tasks they are
+              currently assigned to.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -311,7 +335,13 @@ export function MemberDetailForm({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setRestrictOpen(false); handleToggleRestrict(); }} disabled={isPending}>
+            <AlertDialogAction
+              onClick={() => {
+                setRestrictOpen(false);
+                handleToggleRestrict();
+              }}
+              disabled={isPending}
+            >
               {isRestricted ? "Unrestrict" : "Restrict"}
             </AlertDialogAction>
           </AlertDialogFooter>

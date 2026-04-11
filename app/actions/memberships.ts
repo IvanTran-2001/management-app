@@ -31,7 +31,11 @@ export async function createMembershipAction(
   const email = data.email.trim().toLowerCase();
   if (!email) return { ok: false, error: "Email is required", field: "email" };
   if (data.roleIds.length === 0)
-    return { ok: false, error: "At least one role is required", field: "roles" };
+    return {
+      ok: false,
+      error: "At least one role is required",
+      field: "roles",
+    };
 
   const user = await prisma.user.findUnique({
     where: { email },
@@ -43,6 +47,15 @@ export async function createMembershipAction(
       error: "No user found with that email address",
       field: "email",
     };
+
+  const validRoles = await prisma.role.findMany({
+    where: { id: { in: data.roleIds }, orgId },
+    select: { id: true, key: true },
+  });
+  if (validRoles.length !== data.roleIds.length)
+    return { ok: false, error: "One or more roles not found", field: "roles" };
+  if (validRoles.some((r) => r.key === "owner"))
+    return { ok: false, error: "Cannot assign the owner role", field: "roles" };
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -62,7 +75,11 @@ export async function createMembershipAction(
     });
   } catch (e) {
     if (e instanceof Error && e.message === "CONFLICT")
-      return { ok: false, error: "This user is already a member", field: "email" };
+      return {
+        ok: false,
+        error: "This user is already a member",
+        field: "email",
+      };
     throw e;
   }
 
