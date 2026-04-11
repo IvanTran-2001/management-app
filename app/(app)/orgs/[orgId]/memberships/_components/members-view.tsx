@@ -28,12 +28,7 @@ import Link from "next/link";
 import { LayoutGrid, List, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,10 +77,7 @@ function Avatar({
         alt={name ?? "Member"}
         width={imgPx}
         height={imgPx}
-        className={cn(
-          "rounded-full object-cover shrink-0",
-          sizeClasses[size],
-        )}
+        className={cn("rounded-full object-cover shrink-0", sizeClasses[size])}
       />
     );
   }
@@ -179,8 +171,7 @@ export function MembersView({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
                 {roleFilter
-                  ? (allRoles.find((r) => r.id === roleFilter)?.name ??
-                    "Role")
+                  ? (allRoles.find((r) => r.id === roleFilter)?.name ?? "Role")
                   : "All roles"}
               </Button>
             </DropdownMenuTrigger>
@@ -241,7 +232,9 @@ export function MembersView({
 
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {members.length === 0 ? "No members yet." : "No members match your search."}
+          {members.length === 0
+            ? "No members yet."
+            : "No members match your search."}
         </p>
       ) : view === "card" ? (
         <CardGrid members={filtered} orgId={orgId} canManage={canManage} />
@@ -282,7 +275,12 @@ function CardGrid({
                 <RolesBadge roles={roles} />
                 <StatusBadge status={m.status} />
                 {canManage && (
-                  <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                  <div
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
                     <MemberActions
                       orgId={orgId}
                       userId={m.userId}
@@ -313,7 +311,10 @@ function MemberList({
       {members.map((m) => {
         const roles = m.memberRoles.map(({ role }) => role.name);
         return (
-          <li key={m.userId} className="flex items-center hover:bg-muted/50 transition-colors">
+          <li
+            key={m.userId}
+            className="flex items-center hover:bg-muted/50 transition-colors"
+          >
             <Link
               href={`/orgs/${orgId}/memberships/${m.userId}`}
               className="flex items-center gap-3 px-4 py-3 flex-1 min-w-0"

@@ -16,7 +16,11 @@ interface RolePickerProps {
  * Type to filter available roles; click a result to add it instantly.
  * Selected roles appear as a list with X buttons to remove.
  */
-export function RolePicker({ allRoles, selectedIds, onChange }: RolePickerProps) {
+export function RolePicker({
+  allRoles,
+  selectedIds,
+  onChange,
+}: RolePickerProps) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +70,10 @@ export function RolePicker({ allRoles, selectedIds, onChange }: RolePickerProps)
             ref={inputRef}
             type="text"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setOpen(true);
+            }}
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
             placeholder="Search roles…"
@@ -78,7 +85,10 @@ export function RolePicker({ allRoles, selectedIds, onChange }: RolePickerProps)
                 <li key={r.id}>
                   <button
                     type="button"
-                    onMouseDown={(e) => { e.preventDefault(); addRole(r.id); }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      addRole(r.id);
+                    }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
                   >
                     {r.name}

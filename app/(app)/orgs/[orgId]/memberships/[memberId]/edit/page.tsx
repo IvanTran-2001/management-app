@@ -49,7 +49,9 @@ const EditMemberPage = async ({
           mode="edit"
           orgId={orgId}
           userId={memberId}
-          allRoles={roles.filter((r) => r.key !== ROLE_KEYS.OWNER).map((r) => ({ id: r.id, name: r.name }))}
+          allRoles={roles
+            .filter((r) => r.key !== ROLE_KEYS.OWNER)
+            .map((r) => ({ id: r.id, name: r.name }))}
           initialRoleIds={initialRoleIds}
           initialWorkingDays={membership.workingDays}
           name={membership.user.name}

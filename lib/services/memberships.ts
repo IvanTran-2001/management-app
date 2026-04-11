@@ -136,10 +136,15 @@ export async function updateMembership(
     where: { userId_orgId: { userId, orgId } },
     select: { id: true },
   });
-  if (!membership) return { ok: false, error: "Membership not found", code: "NOT_FOUND" };
+  if (!membership)
+    return { ok: false, error: "Membership not found", code: "NOT_FOUND" };
 
   if (data.roleIds.length === 0)
-    return { ok: false, error: "At least one role is required", code: "INVALID" };
+    return {
+      ok: false,
+      error: "At least one role is required",
+      code: "INVALID",
+    };
 
   const validRoles = await prisma.role.findMany({
     where: { id: { in: data.roleIds }, orgId },
@@ -149,7 +154,11 @@ export async function updateMembership(
     return { ok: false, error: "One or more roles not found", code: "INVALID" };
 
   if (validRoles.some((r) => r.key === ROLE_KEYS.OWNER))
-    return { ok: false, error: "Cannot assign the owner role", code: "INVALID" };
+    return {
+      ok: false,
+      error: "Cannot assign the owner role",
+      code: "INVALID",
+    };
 
   await prisma.$transaction(async (tx) => {
     await tx.membership.update({

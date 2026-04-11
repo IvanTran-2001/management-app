@@ -47,10 +47,8 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
   const [isPending, startTransition] = useTransition();
 
   const [name, setName] = useState(role?.name ?? "");
-  const [useColor, setUseColor] = useState(role ? !!role.color : true);
-  const [color, setColor] = useState(
-    () => role?.color ?? `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0")}`,
-  );
+  const [useColor, setUseColor] = useState(true);
+  const [color, setColor] = useState(() => role?.color ?? "#6366f1");
   const [permissions, setPermissions] = useState<PermissionAction[]>(
     role?.permissions.map((p) => p.action) ?? [],
   );
@@ -84,7 +82,7 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
 
     const data = {
       name,
-      color: useColor ? color : undefined,
+      color: useColor ? color : "#6366f1",
       permissions,
       taskIds: eligibleTaskIds,
     };

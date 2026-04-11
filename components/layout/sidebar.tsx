@@ -85,7 +85,12 @@ function getOrgItems(orgId: string) {
     { title: "Timetable", url: `/orgs/${orgId}/timetable`, icon: Calendar },
     { title: "Tasks", url: `/orgs/${orgId}/tasks`, icon: ListTodo },
     { title: "Members", url: `/orgs/${orgId}/memberships`, icon: Users },
-    { title: "Progress", url: `/orgs/${orgId}/progress`, icon: BarChart2, disabled: true },
+    {
+      title: "Progress",
+      url: `/orgs/${orgId}/progress`,
+      icon: BarChart2,
+      disabled: true,
+    },
   ];
 }
 
@@ -221,13 +226,17 @@ export function AppSidebar() {
                       asChild={!item.disabled}
                       isActive={isActiveItem(item.url)}
                       disabled={item.disabled}
-                      className={item.disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}
+                      className={
+                        item.disabled
+                          ? "opacity-40 cursor-not-allowed pointer-events-none"
+                          : ""
+                      }
                     >
                       {item.disabled ? (
-                        <span>
+                        <>
                           <item.icon />
                           <span>{item.title}</span>
-                        </span>
+                        </>
                       ) : (
                         <Link href={item.url}>
                           <item.icon />

@@ -72,7 +72,6 @@ export function MemberToolbarActions({
       router.refresh();
     });
   }
-  }
 
   return (
     <>

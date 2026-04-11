@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { deleteMembershipAction } from "@/app/actions/memberships";
 
 interface MemberActionsProps {
@@ -34,7 +35,11 @@ interface MemberActionsProps {
  * Provides Edit (links to detail page), Restrict (stub), and Delete
  * (with an AlertDialog confirmation before calling the server action).
  */
-export function MemberActions({ orgId, userId, memberName }: MemberActionsProps) {
+export function MemberActions({
+  orgId,
+  userId,
+  memberName,
+}: MemberActionsProps) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -46,16 +51,19 @@ export function MemberActions({ orgId, userId, memberName }: MemberActionsProps)
         toast.error(result.error);
         return;
       }
+      setConfirmOpen(false);
       router.refresh();
     });
-  }
   }
 
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Member actions"
         >

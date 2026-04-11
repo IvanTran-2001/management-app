@@ -251,13 +251,17 @@ export function TaskForm(props: TaskFormProps) {
 
   const dv = isEdit ? props.defaultValues : null;
 
-  const [color, setColor] = useState(
-    () =>
-      dv?.color ??
-      `#${Math.floor(Math.random() * 0xffffff)
-        .toString(16)
-        .padStart(6, "0")}`,
-  );
+  const [color, setColor] = useState(() => dv?.color ?? "#6366f1");
+
+  useEffect(() => {
+    if (!isEdit) {
+      setColor(
+        `#${Math.floor(Math.random() * 0xffffff)
+          .toString(16)
+          .padStart(6, "0")}`,
+      );
+    }
+  }, [isEdit]);
 
   const boundAction = isEdit
     ? updateTaskAction.bind(null, props.orgId, props.taskId)
@@ -354,10 +358,14 @@ export function TaskForm(props: TaskFormProps) {
               aria-describedby={err("color") ? "color-error" : undefined}
               className="h-9 w-14 cursor-pointer rounded-md border border-input p-0.5 bg-background"
             />
-            <span className="text-sm text-muted-foreground font-mono">{color}</span>
+            <span className="text-sm text-muted-foreground font-mono">
+              {color}
+            </span>
           </div>
           {err("color") && (
-            <p id="color-error" className="text-xs text-destructive">{err("color")}</p>
+            <p id="color-error" className="text-xs text-destructive">
+              {err("color")}
+            </p>
           )}
         </div>
 

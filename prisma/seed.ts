@@ -46,48 +46,49 @@ async function main() {
   await prisma.organization.deleteMany();
 
   // ── 2. Users (upsert — keeps existing OAuth accounts intact) ──────────────
-  const [ivan, jordan, casey, riley, morgan, alex, taylor, sam] = await Promise.all([
-    prisma.user.upsert({
-      where: { email: "mystoganx2001@gmail.com" },
-      update: { name: "Ivan" },
-      create: { email: "mystoganx2001@gmail.com", name: "Ivan" },
-    }),
-    prisma.user.upsert({
-      where: { email: "alt28918@gmail.com" },
-      update: { name: "Jordan" },
-      create: { email: "alt28918@gmail.com", name: "Jordan" },
-    }),
-    prisma.user.upsert({
-      where: { email: "alt28919@gmail.com" },
-      update: { name: "Casey" },
-      create: { email: "alt28919@gmail.com", name: "Casey" },
-    }),
-    prisma.user.upsert({
-      where: { email: "alt28920@gmail.com" },
-      update: { name: "Riley" },
-      create: { email: "alt28920@gmail.com", name: "Riley" },
-    }),
-    prisma.user.upsert({
-      where: { email: "alt28921@gmail.com" },
-      update: { name: "Morgan" },
-      create: { email: "alt28921@gmail.com", name: "Morgan" },
-    }),
-    prisma.user.upsert({
-      where: { email: "alt28922@gmail.com" },
-      update: { name: "Alex" },
-      create: { email: "alt28922@gmail.com", name: "Alex" },
-    }),
-    prisma.user.upsert({
-      where: { email: "alt28923@gmail.com" },
-      update: { name: "Taylor" },
-      create: { email: "alt28923@gmail.com", name: "Taylor" },
-    }),
-    prisma.user.upsert({
-      where: { email: "alt28924@gmail.com" },
-      update: { name: "Sam" },
-      create: { email: "alt28924@gmail.com", name: "Sam" },
-    }),
-  ]);
+  const [ivan, jordan, casey, riley, morgan, alex, taylor, sam] =
+    await Promise.all([
+      prisma.user.upsert({
+        where: { email: "mystoganx2001@gmail.com" },
+        update: { name: "Ivan" },
+        create: { email: "mystoganx2001@gmail.com", name: "Ivan" },
+      }),
+      prisma.user.upsert({
+        where: { email: "alt28918@gmail.com" },
+        update: { name: "Jordan" },
+        create: { email: "alt28918@gmail.com", name: "Jordan" },
+      }),
+      prisma.user.upsert({
+        where: { email: "alt28919@gmail.com" },
+        update: { name: "Casey" },
+        create: { email: "alt28919@gmail.com", name: "Casey" },
+      }),
+      prisma.user.upsert({
+        where: { email: "alt28920@gmail.com" },
+        update: { name: "Riley" },
+        create: { email: "alt28920@gmail.com", name: "Riley" },
+      }),
+      prisma.user.upsert({
+        where: { email: "alt28921@gmail.com" },
+        update: { name: "Morgan" },
+        create: { email: "alt28921@gmail.com", name: "Morgan" },
+      }),
+      prisma.user.upsert({
+        where: { email: "alt28922@gmail.com" },
+        update: { name: "Alex" },
+        create: { email: "alt28922@gmail.com", name: "Alex" },
+      }),
+      prisma.user.upsert({
+        where: { email: "alt28923@gmail.com" },
+        update: { name: "Taylor" },
+        create: { email: "alt28923@gmail.com", name: "Taylor" },
+      }),
+      prisma.user.upsert({
+        where: { email: "alt28924@gmail.com" },
+        update: { name: "Sam" },
+        create: { email: "alt28924@gmail.com", name: "Sam" },
+      }),
+    ]);
 
   // ── 3. Date helpers ────────────────────────────────────────────────────────
   const ORG_TZ = "Australia/Sydney";
@@ -244,90 +245,94 @@ async function main() {
     ],
   });
 
-  const [o1Task1, o1Task2, o1Task3, o1Task4, o1Task5, o1Task6] = await Promise.all([
-    prisma.task.create({
-      data: {
-        orgId: org1.id,
-        name: "Open shop checklist",
-        description: "Turn on lights, start fryer, prep counter.",
-        color: "#F59E0B",
-        durationMin: 30,
-        preferredStartTimeMin: timeToMin("06:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org1.id,
-        name: "Clean ice cream machine",
-        description: "Full sanitize cycle.",
-        color: "#3B82F6",
-        durationMin: 45,
-        preferredStartTimeMin: timeToMin("14:00"),
-        minPeople: 1,
-        minWaitDays: 2,
-        maxWaitDays: 3,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org1.id,
-        name: "Close shop checklist",
-        description: "Trash, mop, lock up, end of day report.",
-        color: "#8B5CF6",
-        durationMin: 40,
-        preferredStartTimeMin: timeToMin("17:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org1.id,
-        name: "Fry donut batches",
-        description: "Prep and fry fresh donut batches for the day.",
-        color: "#EF4444",
-        durationMin: 60,
-        preferredStartTimeMin: timeToMin("08:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org1.id,
-        name: "Restock supplies",
-        description: "Check and restock napkins, boxes, and toppings.",
-        color: "#22C55E",
-        durationMin: 30,
-        preferredStartTimeMin: timeToMin("11:00"),
-        minPeople: 1,
-        minWaitDays: 1,
-        maxWaitDays: 3,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org1.id,
-        name: "Quality check",
-        description: "Inspect product quality and presentation standards.",
-        color: "#A855F7",
-        durationMin: 20,
-        preferredStartTimeMin: timeToMin("10:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 2,
-      },
-    }),
-  ]);
+  const [o1Task1, o1Task2, o1Task3, o1Task4, o1Task5, o1Task6] =
+    await Promise.all([
+      prisma.task.create({
+        data: {
+          orgId: org1.id,
+          name: "Open shop checklist",
+          description: "Turn on lights, start fryer, prep counter.",
+          color: "#F59E0B",
+          durationMin: 30,
+          preferredStartTimeMin: timeToMin("06:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org1.id,
+          name: "Clean ice cream machine",
+          description: "Full sanitize cycle.",
+          color: "#3B82F6",
+          durationMin: 45,
+          preferredStartTimeMin: timeToMin("14:00"),
+          minPeople: 1,
+          minWaitDays: 2,
+          maxWaitDays: 3,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org1.id,
+          name: "Close shop checklist",
+          description: "Trash, mop, lock up, end of day report.",
+          color: "#8B5CF6",
+          durationMin: 40,
+          preferredStartTimeMin: timeToMin("17:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org1.id,
+          name: "Fry donut batches",
+          description: "Prep and fry fresh donut batches for the day.",
+          color: "#EF4444",
+          durationMin: 60,
+          preferredStartTimeMin: timeToMin("08:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org1.id,
+          name: "Restock supplies",
+          description: "Check and restock napkins, boxes, and toppings.",
+          color: "#22C55E",
+          durationMin: 30,
+          preferredStartTimeMin: timeToMin("11:00"),
+          minPeople: 1,
+          minWaitDays: 1,
+          maxWaitDays: 3,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org1.id,
+          name: "Quality check",
+          description: "Inspect product quality and presentation standards.",
+          color: "#A855F7",
+          durationMin: 20,
+          preferredStartTimeMin: timeToMin("10:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 2,
+        },
+      }),
+    ]);
 
   await prisma.taskEligibility.createMany({
     data: [
-      ...[o1Task1, o1Task2, o1Task3, o1Task4, o1Task5, o1Task6].map((t) => ({ taskId: t.id, roleId: o1Worker.id })),
+      ...[o1Task1, o1Task2, o1Task3, o1Task4, o1Task5, o1Task6].map((t) => ({
+        taskId: t.id,
+        roleId: o1Worker.id,
+      })),
       { taskId: o1Task4.id, roleId: o1Fryer.id },
       { taskId: o1Task5.id, roleId: o1Counter.id },
       { taskId: o1Task6.id, roleId: o1Fryer.id },
@@ -673,90 +678,95 @@ async function main() {
     ],
   });
 
-  const [o2Task1, o2Task2, o2Task3, o2Task4, o2Task5, o2Task6] = await Promise.all([
-    prisma.task.create({
-      data: {
-        orgId: org2.id,
-        name: "Open cafe checklist",
-        description: "Unlock, start espresso machine, fill condiments.",
-        color: "#F97316",
-        durationMin: 20,
-        preferredStartTimeMin: timeToMin("07:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org2.id,
-        name: "Clean espresso machine",
-        description: "Backflush, descale group heads, clean steam wand.",
-        color: "#14B8A6",
-        durationMin: 30,
-        preferredStartTimeMin: timeToMin("15:00"),
-        minPeople: 1,
-        minWaitDays: 1,
-        maxWaitDays: 2,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org2.id,
-        name: "Close cafe checklist",
-        description: "Cash up, wipe down, lock up.",
-        color: "#6366F1",
-        durationMin: 25,
-        preferredStartTimeMin: timeToMin("16:30"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org2.id,
-        name: "Milk restocking",
-        description: "Check fridge levels and restock milk from cold storage.",
-        color: "#0891B2",
-        durationMin: 15,
-        preferredStartTimeMin: timeToMin("09:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org2.id,
-        name: "Coffee bean preparation",
-        description: "Grind beans, calibrate grinder, prep portafilters.",
-        color: "#7C3AED",
-        durationMin: 20,
-        preferredStartTimeMin: timeToMin("06:30"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org2.id,
-        name: "Customer area cleaning",
-        description: "Wipe tables, restock sugar and napkins, sweep floor.",
-        color: "#059669",
-        durationMin: 30,
-        preferredStartTimeMin: timeToMin("12:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 2,
-      },
-    }),
-  ]);
+  const [o2Task1, o2Task2, o2Task3, o2Task4, o2Task5, o2Task6] =
+    await Promise.all([
+      prisma.task.create({
+        data: {
+          orgId: org2.id,
+          name: "Open cafe checklist",
+          description: "Unlock, start espresso machine, fill condiments.",
+          color: "#F97316",
+          durationMin: 20,
+          preferredStartTimeMin: timeToMin("07:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org2.id,
+          name: "Clean espresso machine",
+          description: "Backflush, descale group heads, clean steam wand.",
+          color: "#14B8A6",
+          durationMin: 30,
+          preferredStartTimeMin: timeToMin("15:00"),
+          minPeople: 1,
+          minWaitDays: 1,
+          maxWaitDays: 2,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org2.id,
+          name: "Close cafe checklist",
+          description: "Cash up, wipe down, lock up.",
+          color: "#6366F1",
+          durationMin: 25,
+          preferredStartTimeMin: timeToMin("16:30"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org2.id,
+          name: "Milk restocking",
+          description:
+            "Check fridge levels and restock milk from cold storage.",
+          color: "#0891B2",
+          durationMin: 15,
+          preferredStartTimeMin: timeToMin("09:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org2.id,
+          name: "Coffee bean preparation",
+          description: "Grind beans, calibrate grinder, prep portafilters.",
+          color: "#7C3AED",
+          durationMin: 20,
+          preferredStartTimeMin: timeToMin("06:30"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org2.id,
+          name: "Customer area cleaning",
+          description: "Wipe tables, restock sugar and napkins, sweep floor.",
+          color: "#059669",
+          durationMin: 30,
+          preferredStartTimeMin: timeToMin("12:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 2,
+        },
+      }),
+    ]);
 
   await prisma.taskEligibility.createMany({
     data: [
-      ...[o2Task1, o2Task2, o2Task3, o2Task4, o2Task5, o2Task6].map((t) => ({ taskId: t.id, roleId: o2Barista.id })),
+      ...[o2Task1, o2Task2, o2Task3, o2Task4, o2Task5, o2Task6].map((t) => ({
+        taskId: t.id,
+        roleId: o2Barista.id,
+      })),
       { taskId: o2Task4.id, roleId: o2Kitchen.id },
       { taskId: o2Task5.id, roleId: o2HeadBarista.id },
       { taskId: o2Task6.id, roleId: o2Kitchen.id },
@@ -1104,90 +1114,96 @@ async function main() {
     ],
   });
 
-  const [o3Task1, o3Task2, o3Task3, o3Task4, o3Task5, o3Task6] = await Promise.all([
-    prisma.task.create({
-      data: {
-        orgId: org3.id,
-        name: "Morning prep",
-        description: "Preheat ovens, prep dough, set up station.",
-        color: "#F59E0B",
-        durationMin: 45,
-        preferredStartTimeMin: timeToMin("05:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org3.id,
-        name: "Bread baking",
-        description: "Score and bake loaves for the day.",
-        color: "#10B981",
-        durationMin: 90,
-        preferredStartTimeMin: timeToMin("06:00"),
-        minPeople: 2,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org3.id,
-        name: "Evening cleanup",
-        description: "Clean ovens, sweep floor, store remaining stock.",
-        color: "#8B5CF6",
-        durationMin: 40,
-        preferredStartTimeMin: timeToMin("13:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org3.id,
-        name: "Pastry preparation",
-        description: "Prepare croissants, danish, and daily pastry selection.",
-        color: "#F472B6",
-        durationMin: 60,
-        preferredStartTimeMin: timeToMin("05:30"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 1,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org3.id,
-        name: "Window display setup",
-        description: "Arrange today's baked goods in the shop window.",
-        color: "#34D399",
-        durationMin: 20,
-        preferredStartTimeMin: timeToMin("08:00"),
-        minPeople: 1,
-        minWaitDays: 0,
-        maxWaitDays: 2,
-      },
-    }),
-    prisma.task.create({
-      data: {
-        orgId: org3.id,
-        name: "Stock count",
-        description: "Audit flour, yeast, butter and other ingredient levels.",
-        color: "#60A5FA",
-        durationMin: 30,
-        preferredStartTimeMin: timeToMin("13:00"),
-        minPeople: 1,
-        minWaitDays: 2,
-        maxWaitDays: 7,
-      },
-    }),
-  ]);
+  const [o3Task1, o3Task2, o3Task3, o3Task4, o3Task5, o3Task6] =
+    await Promise.all([
+      prisma.task.create({
+        data: {
+          orgId: org3.id,
+          name: "Morning prep",
+          description: "Preheat ovens, prep dough, set up station.",
+          color: "#F59E0B",
+          durationMin: 45,
+          preferredStartTimeMin: timeToMin("05:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org3.id,
+          name: "Bread baking",
+          description: "Score and bake loaves for the day.",
+          color: "#10B981",
+          durationMin: 90,
+          preferredStartTimeMin: timeToMin("06:00"),
+          minPeople: 2,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org3.id,
+          name: "Evening cleanup",
+          description: "Clean ovens, sweep floor, store remaining stock.",
+          color: "#8B5CF6",
+          durationMin: 40,
+          preferredStartTimeMin: timeToMin("13:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org3.id,
+          name: "Pastry preparation",
+          description:
+            "Prepare croissants, danish, and daily pastry selection.",
+          color: "#F472B6",
+          durationMin: 60,
+          preferredStartTimeMin: timeToMin("05:30"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 1,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org3.id,
+          name: "Window display setup",
+          description: "Arrange today's baked goods in the shop window.",
+          color: "#34D399",
+          durationMin: 20,
+          preferredStartTimeMin: timeToMin("08:00"),
+          minPeople: 1,
+          minWaitDays: 0,
+          maxWaitDays: 2,
+        },
+      }),
+      prisma.task.create({
+        data: {
+          orgId: org3.id,
+          name: "Stock count",
+          description:
+            "Audit flour, yeast, butter and other ingredient levels.",
+          color: "#60A5FA",
+          durationMin: 30,
+          preferredStartTimeMin: timeToMin("13:00"),
+          minPeople: 1,
+          minWaitDays: 2,
+          maxWaitDays: 7,
+        },
+      }),
+    ]);
 
   await prisma.taskEligibility.createMany({
     data: [
-      ...[o3Task1, o3Task2, o3Task3, o3Task4, o3Task5, o3Task6].map((t) => ({ taskId: t.id, roleId: o3Baker.id })),
+      ...[o3Task1, o3Task2, o3Task3, o3Task4, o3Task5, o3Task6].map((t) => ({
+        taskId: t.id,
+        roleId: o3Baker.id,
+      })),
       { taskId: o3Task4.id, roleId: o3Pastry.id },
       { taskId: o3Task5.id, roleId: o3HeadBaker.id },
       { taskId: o3Task6.id, roleId: o3HeadBaker.id },
