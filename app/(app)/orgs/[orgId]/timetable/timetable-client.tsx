@@ -32,7 +32,7 @@
  * mutating the database.
  */
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, LayoutList, MoreHorizontal, Plus, X } from "lucide-react";
@@ -472,6 +472,13 @@ function CalendarView({
 
   const isMobile = useIsMobile();
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
+  useEffect(() => {
+    const update = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   return (
     <>
@@ -580,14 +587,18 @@ function CalendarView({
         <>
           <button
             onClick={() => setTaskPanelOpen(true)}
-            className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg px-4 py-2.5 text-sm font-medium active:scale-95 transition-transform"
+            className="fixed bottom-6 right-4 z-40 flex items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg px-4 py-2.5 text-sm font-medium active:scale-95 transition-transform"
+            style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
             aria-label="Open task list"
           >
             <LayoutList className="h-4 w-4" />
             Tasks
           </button>
           <Sheet open={taskPanelOpen} onOpenChange={setTaskPanelOpen}>
-            <SheetContent side="bottom" className="h-[70vh] p-0 flex flex-col">
+            <SheetContent
+              side={isLandscape ? "right" : "bottom"}
+              className={isLandscape ? "w-64 p-0 flex flex-col" : "h-[55vh] p-0 flex flex-col"}
+            >
               <SheetHeader className="px-4 pt-4 pb-2 border-b shrink-0">
                 <SheetTitle>Tasks</SheetTitle>
               </SheetHeader>
