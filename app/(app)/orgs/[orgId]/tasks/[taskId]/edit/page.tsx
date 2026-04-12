@@ -34,23 +34,25 @@ const EditTaskPage = async ({
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-xl font-semibold mb-6">Edit Task</h1>
-      <TaskForm
-        mode="edit"
-        orgId={orgId}
-        taskId={taskId}
-        allRoles={allRoles}
-        eligibleRoles={eligibleRoles}
-        defaultValues={{
-          color: task.color,
-          title: task.name,
-          description: task.description,
-          durationMin: task.durationMin,
-          preferredStartTimeMin: task.preferredStartTimeMin,
-          peopleRequired: task.minPeople,
-          minWaitDays: task.minWaitDays,
-          maxWaitDays: task.maxWaitDays,
-        }}
-      />
+      <div className="rounded-xl border bg-card p-6">
+        <TaskForm
+          mode="edit"
+          orgId={orgId}
+          taskId={taskId}
+          allRoles={allRoles}
+          eligibleRoles={eligibleRoles}
+          defaultValues={{
+            color: task.color,
+            title: task.name,
+            description: task.description,
+            durationMin: task.durationMin,
+            preferredStartTimeMin: task.preferredStartTimeMin,
+            peopleRequired: task.minPeople,
+            minWaitDays: task.minWaitDays,
+            maxWaitDays: task.maxWaitDays,
+          }}
+        />
+      </div>
     </div>
   );
 };

@@ -24,7 +24,9 @@ const NewTaskPage = async ({
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-xl font-semibold mb-6">Create Task</h1>
-      <TaskForm mode="create" orgId={orgId} allRoles={allRoles} />
+      <div className="rounded-xl border bg-card p-6">
+        <TaskForm mode="create" orgId={orgId} allRoles={allRoles} />
+      </div>
     </div>
   );
 };

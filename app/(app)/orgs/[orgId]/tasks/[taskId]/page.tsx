@@ -8,12 +8,12 @@
  * Returns 404 if the task does not belong to the org.
  */
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { PermissionAction } from "@prisma/client";
 import { requireOrgMemberPage } from "@/lib/authz";
 import { getOrgMembership, memberHasPermission } from "@/lib/authz/_shared";
 import { getTaskById } from "@/lib/services/tasks";
 import { Toolbar } from "@/components/layout/toolbar";
+import { BackButton } from "@/components/layout/back-button";
 import { TaskViewActions } from "./task-view-actions";
 import { formatDate } from "@/lib/utils";
 
@@ -34,10 +34,18 @@ function formatTime(min: number): string {
 
 interface Props {
   params: Promise<{ orgId: string; taskId: string }>;
+  searchParams: Promise<{ ref?: string }>;
 }
 
-const ViewTaskPage = async ({ params }: Props) => {
+const ViewTaskPage = async ({ params, searchParams }: Props) => {
   const { orgId, taskId } = await params;
+  const { ref } = await searchParams;
+
+  const fromTimetable = ref === "timetable";
+  const backLabel = fromTimetable ? "← Timetable" : "← Tasks";
+  const backHref = fromTimetable
+    ? `/orgs/${orgId}/timetable`
+    : `/orgs/${orgId}/tasks`;
 
   const { userId } = await requireOrgMemberPage(orgId);
 
@@ -60,12 +68,12 @@ const ViewTaskPage = async ({ params }: Props) => {
   return (
     <>
       <Toolbar>
-        <Link
-          href={`/orgs/${orgId}/tasks`}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        <BackButton
+          fallbackHref={backHref}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
-          ← Tasks
-        </Link>
+          {backLabel}
+        </BackButton>
         {canManage && (
           <TaskViewActions orgId={orgId} taskId={taskId} taskName={task.name} />
         )}

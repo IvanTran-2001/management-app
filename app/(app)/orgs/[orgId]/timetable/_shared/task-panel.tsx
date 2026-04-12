@@ -25,11 +25,16 @@ export function TaskPanel({
   const [search, setSearch] = useState("");
   const filtered = tasks.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  ).sort((a, b) => {
+    if (a.roleName && b.roleName) return a.roleName.localeCompare(b.roleName);
+    if (a.roleName) return -1;
+    if (b.roleName) return 1;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
     <div
-      className={`w-56 shrink-0 rounded-xl border flex flex-col overflow-hidden${fillHeight ? " min-h-0" : ""}`}
+      className={`w-56 shrink-0 rounded-xl border bg-card flex flex-col overflow-hidden${fillHeight ? " min-h-0" : ""}`}
     >
       <div className="px-3 py-2.5 font-medium text-sm border-b shrink-0">
         Tasks
@@ -57,11 +62,15 @@ export function TaskPanel({
               draggable
               onDragStart={(e) => onDragStart(task.id, e)}
               onDragEnd={onDragEnd}
-              className="px-3 py-2.5 border-b last:border-b-0 cursor-grab active:cursor-grabbing hover:bg-muted/30 transition-colors select-none"
+              className="relative px-3 py-2.5 border-b last:border-b-0 cursor-grab active:cursor-grabbing hover:bg-muted/30 transition-colors select-none pl-4"
             >
+              <span
+                className="absolute left-0 inset-y-0 w-1 rounded-r-sm"
+                style={{ backgroundColor: task.roleColor ?? task.color ?? "#9ca3af" }}
+              />
               <div className="text-sm font-medium">{task.name}</div>
               <div className="text-xs text-muted-foreground">
-                {task.durationMin} min
+                {task.roleName ? `${task.roleName} · ` : ""}{task.durationMin} min
               </div>
             </div>
           ))

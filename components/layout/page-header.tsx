@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
-import { headers } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useBreadcrumbOverride } from "@/components/layout/breadcrumb-context";
 
 /**
  * Maps static URL path segments to human-readable breadcrumb labels.
@@ -20,124 +23,178 @@ const SEGMENT_LABELS: Record<string, string> = {
   franchisee: "Franchise",
 };
 
+/** Parent segment → entity-name API type */
+const PARENT_TO_TYPE: Record<string, string> = {
+  tasks: "tasks",
+  memberships: "memberships",
+  roles: "roles",
+  templates: "templates",
+};
+
 interface BreadcrumbItem {
   label: string;
   href?: string;
+  /** True while waiting for the entity name from the API */
+  loading?: boolean;
 }
 
-/** Returns true if a segment looks like a DB id rather than a known keyword. */
+/** Returns true when a segment looks like a DB id rather than a known keyword. */
 function looksLikeId(seg: string): boolean {
-  return seg.length > 8 && /^[a-z0-9]+$/i.test(seg) && !(seg in SEGMENT_LABELS);
+  return (
+    seg.length > 8 && /^[a-z0-9]+$/i.test(seg) && !(seg in SEGMENT_LABELS)
+  );
 }
 
-/**
- * Resolves a URL segment to a human-readable label.
- * For known keywords it uses SEGMENT_LABELS; for id-like segments it
- * queries the DB using the preceding segment as a type hint.
- */
-async function resolveLabel(
-  seg: string,
-  index: number,
-  segments: string[],
-  orgId: string | null,
-): Promise<string> {
-  if (seg in SEGMENT_LABELS) return SEGMENT_LABELS[seg];
-  if (!looksLikeId(seg)) return seg;
-
-  const parent = index > 0 ? segments[index - 1] : null;
-
-  try {
-    if (parent === "tasks") {
-      const t = await prisma.task.findFirst({
-        where: { id: seg, orgId: orgId ?? undefined },
-        select: { name: true },
-      });
-      if (t) return t.name;
-    } else if (parent === "memberships" && orgId) {
-      const m = await prisma.membership.findFirst({
-        where: { orgId, id: seg },
-        select: { user: { select: { name: true } } },
-      });
-      if (m?.user?.name) return m.user.name;
-    } else if (parent === "roles") {
-      const r = await prisma.role.findFirst({
-        where: { id: seg, orgId: orgId ?? undefined },
-        select: { name: true },
-      });
-      if (r) return r.name;
-    } else if (parent === "templates") {
-      const t = await prisma.template.findFirst({
-        where: { id: seg, orgId: orgId ?? undefined },
-        select: { name: true },
-      });
-      if (t) return t.name;
-    }
-  } catch {
-    // DB unavailable — fall back to raw id
-  }
-
-  return seg;
-}
-
-/**
- * Renders a purple breadcrumb bar that automatically reflects the current route.
- *
- * Async server component: reads the current pathname from the `x-pathname`
- * request header (set by the middleware in proxy.ts) and resolves any
- * dynamic id segments to entity names via direct Prisma queries.
- */
-export async function PageHeader() {
-  const headersList = await headers();
-  const pathname = headersList.get("x-pathname") ?? "";
-
+/** Builds a static breadcrumb list from a pathname, using loading placeholders for IDs. */
+function buildCrumbs(pathname: string): BreadcrumbItem[] {
   const breadcrumbs: BreadcrumbItem[] = [];
 
   const orgMatch = pathname.match(/^\/orgs\/([^/]+)(\/.*)?$/);
-
   if (!orgMatch || orgMatch[1] === "new") {
-    if (pathname === "/orgs/new") {
-      breadcrumbs.push({ label: "Create Organization" });
-    }
-  } else {
-    const orgId = orgMatch[1];
-    const base = `/orgs/${orgId}`;
+    if (pathname === "/orgs/new") breadcrumbs.push({ label: "Create Organization" });
+    return breadcrumbs;
+  }
 
-    breadcrumbs.push({ label: "Overview", href: base });
+  const orgId = orgMatch[1];
+  const base = `/orgs/${orgId}`;
+  breadcrumbs.push({ label: "Overview", href: base });
 
-    const rest = (orgMatch[2] ?? "").replace(/^\//, "");
-    const segments = rest ? rest.split("/") : [];
+  const rest = (orgMatch[2] ?? "").replace(/^\//, "");
+  const segments = rest ? rest.split("/") : [];
 
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      const label = await resolveLabel(seg, i, segments, orgId);
-      const isLast = i === segments.length - 1;
-      const href = isLast
-        ? undefined
-        : `${base}/${segments.slice(0, i + 1).join("/")}`;
-      breadcrumbs.push({ label, href });
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const isLast = i === segments.length - 1;
+    const href = isLast
+      ? undefined
+      : `${base}/${segments.slice(0, i + 1).join("/")}`;
+
+    if (seg in SEGMENT_LABELS) {
+      breadcrumbs.push({ label: SEGMENT_LABELS[seg], href });
+    } else if (looksLikeId(seg)) {
+      const parent = i > 0 ? segments[i - 1] : null;
+      const isResolvable = !!(parent && parent in PARENT_TO_TYPE);
+      breadcrumbs.push({ label: seg, href, loading: isResolvable });
+    } else {
+      breadcrumbs.push({ label: seg, href });
     }
   }
 
-  if (breadcrumbs.length === 0) return null;
+  return breadcrumbs;
+}
+
+/**
+ * Client-side breadcrumb bar. Uses usePathname() so it automatically updates
+ * on every client-side navigation. Entity names for dynamic ID segments are
+ * resolved asynchronously from the /api/orgs/[orgId]/entity-name endpoint.
+ */
+export function PageHeader() {
+  const pathname = usePathname();
+  const { override } = useBreadcrumbOverride();
+
+  const baseCrumbs = useMemo(() => buildCrumbs(pathname), [pathname]);
+
+  // crumbIdx → resolved label, keyed by pathname so stale fetches from
+  // previous routes never overwrite the current route's crumbs.
+  const [resolvedByPath, setResolvedByPath] = useState<
+    Record<string, Record<number, string>>
+  >({});
+
+  const crumbs = useMemo(() => {
+    const resolved = resolvedByPath[pathname] ?? {};
+    return baseCrumbs.map((c, idx) =>
+      resolved[idx] === undefined
+        ? c
+        : { ...c, label: resolved[idx], loading: false },
+    );
+  }, [baseCrumbs, pathname, resolvedByPath]);
+
+  useEffect(() => {
+    const orgMatch = pathname.match(/^\/orgs\/([^/]+)(\/.*)?$/);
+    if (!orgMatch || orgMatch[1] === "new") return;
+    const orgId = orgMatch[1];
+    const segments = (orgMatch[2] ?? "")
+      .replace(/^\//, "")
+      .split("/")
+      .filter(Boolean);
+
+    // Fetch names for all ID segments in parallel
+    const controllers: AbortController[] = [];
+
+    segments.forEach((seg, i) => {
+      if (!looksLikeId(seg)) return;
+      const parent = i > 0 ? segments[i - 1] : null;
+      const type = parent ? PARENT_TO_TYPE[parent] : null;
+      if (!type) return;
+
+      const ctrl = new AbortController();
+      controllers.push(ctrl);
+
+      // Capture the crumb index (account for "Overview" at index 0)
+      const crumbIdx = i + 1;
+
+      fetch(
+        `/api/orgs/${orgId}/entity-name?type=${encodeURIComponent(type)}&id=${encodeURIComponent(seg)}`,
+        { signal: ctrl.signal },
+      )
+        .then((r) => {
+          if (r.ok) return r.json();
+          setResolvedByPath((prev) => ({
+            ...prev,
+            [pathname]: { ...(prev[pathname] ?? {}), [crumbIdx]: seg },
+          }));
+          return null;
+        })
+        .then((data: { name: string } | null) => {
+          if (!data?.name) return;
+          setResolvedByPath((prev) => ({
+            ...prev,
+            [pathname]: { ...(prev[pathname] ?? {}), [crumbIdx]: data.name },
+          }));
+        })
+        .catch((error) => {
+          if (error.name === "AbortError") return;
+          setResolvedByPath((prev) => ({
+            ...prev,
+            [pathname]: { ...(prev[pathname] ?? {}), [crumbIdx]: seg },
+          }));
+        });
+    });
+
+    return () => controllers.forEach((c) => c.abort());
+  }, [pathname]);
+
+  if (baseCrumbs.length === 0) return null;
 
   return (
-    <div className="bg-primary px-6 py-3">
-      <nav className="flex items-center gap-1.5 text-primary-foreground text-sm">
-        {breadcrumbs.map((crumb, i) => {
-          const isLast = i === breadcrumbs.length - 1;
+    <div className="border-b bg-card px-6 py-2.5">
+      <nav className="flex items-center gap-1 text-sm">
+        {crumbs.map((crumb, i) => {
+          const isLast = i === crumbs.length - 1;
+          const label = isLast && override ? override : crumb.label;
           return (
-            <span key={i} className="flex items-center gap-1.5">
-              {i > 0 && <span className="opacity-50">/</span>}
+            <span key={i} className="flex items-center gap-1">
+              {i > 0 && <span className="text-border select-none">/</span>}
               {!isLast && crumb.href ? (
                 <Link
                   href={crumb.href}
-                  className="opacity-75 hover:opacity-100 transition-opacity"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {crumb.label}
+                  {label}
                 </Link>
               ) : (
-                <span className={isLast ? "font-semibold" : "opacity-75"}>
-                  {crumb.label}
+                <span
+                  className={
+                    isLast
+                      ? "text-primary font-semibold text-[0.9rem]"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {crumb.loading ? (
+                    <span className="inline-block h-3.5 w-20 animate-pulse rounded bg-muted" />
+                  ) : (
+                    label
+                  )}
                 </span>
               )}
             </span>

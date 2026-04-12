@@ -41,7 +41,7 @@ export function OrgSwitcher({ orgs }: { orgs: Org[] }) {
           orgs.map((org) => (
             <DropdownMenuItem
               key={org.id}
-              onSelect={() => router.push(`/orgs/${org.id}`)}
+              onSelect={() => router.push(`/orgs/${org.id}/timetable`)}
             >
               {org.name}
             </DropdownMenuItem>

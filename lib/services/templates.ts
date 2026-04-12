@@ -136,7 +136,7 @@ export async function updateTemplateInstance(
 ): Promise<ServiceResult<null>> {
   const entry = await prisma.templateEntry.findFirst({
     where: { id: instanceId, template: { orgId } },
-    select: { id: true, templateId: true, durationMin: true },
+    select: { id: true, templateId: true, durationMin: true, task: { select: { durationMin: true } } },
   });
   if (!entry) return { ok: false, error: "Not found", code: "NOT_FOUND" };
 
@@ -173,7 +173,7 @@ export async function updateTemplateInstance(
       ...(update.dayIndex !== undefined && { dayIndex: update.dayIndex }),
       ...(update.startTimeMin !== undefined && {
         startTimeMin: update.startTimeMin,
-        endTimeMin: Math.min(update.startTimeMin + entry.durationMin, 1440),
+        endTimeMin: Math.min(update.startTimeMin + (entry.durationMin ?? entry.task.durationMin), 1440),
       }),
     },
   });
@@ -397,7 +397,18 @@ export async function applyTemplate(
     })
     .map((e) => e.id);
 
-  const createData = [];
+  const createData: Array<{
+    orgId: string;
+    taskId: string;
+    taskName: string;
+    taskColor: string;
+    taskDescription: string | null;
+    durationMin: number;
+    date: Date;
+    startTimeMin: number;
+    endTimeMin: number;
+    assignees: string[];
+  }> = [];
   for (let repeat = 0; repeat < cycleRepeats; repeat++) {
     for (const entry of template.entries) {
       const dayOffset = repeat * template.cycleLengthDays + entry.dayIndex;

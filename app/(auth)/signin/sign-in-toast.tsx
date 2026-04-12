@@ -1,0 +1,22 @@
+"use client";
+
+import { useEffect } from "react";
+import { toast } from "sonner";
+
+/**
+ * Fires a Sonner toast when the sign-in page receives a `hint` query param
+ * (e.g. account_required — set by the auth middleware when an unauthenticated
+ * user tries to visit a protected page directly).
+ * Rendered as a pure side-effect component; returns no markup.
+ */
+export function SignInToast({ hint }: { hint?: string }) {
+  useEffect(() => {
+    if (hint === "account_required") {
+      toast.info("You need an account to access FriendChise.", {
+        duration: 5000,
+      });
+    }
+  }, [hint]);
+
+  return null;
+}

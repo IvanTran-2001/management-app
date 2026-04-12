@@ -2,7 +2,14 @@
  * Shared types used by both the live timetable and the template editor.
  */
 
-export type SharedTask = { id: string; name: string; durationMin: number };
+export type SharedTask = {
+  id: string;
+  name: string;
+  durationMin: number;
+  color?: string | null;
+  roleColor?: string | null;
+  roleName?: string | null;
+};
 
 export type SharedMembership = {
   id: string;

@@ -350,7 +350,7 @@ export function TemplateEditorClient({
           className={`flex-1 min-w-0 flex flex-col gap-3${fillHeight ? " min-h-0" : ""}`}
         >
           {/* Cycle navigation */}
-          <div className="flex items-center justify-between rounded-lg border px-4 py-1.5">
+          <div className="flex items-center justify-between rounded-lg border bg-card shadow-sm px-4 py-1.5">
             <Button
               variant="ghost"
               size="sm"
@@ -421,7 +421,7 @@ export function TemplateEditorClient({
         <div
           className={`w-56 shrink-0 flex flex-col gap-3${fillHeight ? " min-h-0" : ""}`}
         >
-          <div className="rounded-xl border p-3 flex flex-col gap-2">
+          <div className="rounded-xl border bg-card shadow-sm p-3 flex flex-col gap-2">
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Cycle
             </div>

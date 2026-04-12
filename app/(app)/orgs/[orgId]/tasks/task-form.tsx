@@ -213,12 +213,12 @@ function EligibilityPanel(props: EligibilityPanelProps) {
                 </span>
                 <button
                   type="button"
-                  className="text-xs text-muted-foreground hover:text-destructive font-mono px-1"
+                  className="text-xs text-muted-foreground hover:text-destructive leading-none px-1 py-0.5 rounded transition-colors"
                   onClick={() => remove(role.id)}
                   disabled={isPending}
                   aria-label={`Remove ${role.name}`}
                 >
-                  [−]
+                  ×
                 </button>
               </li>
             ))}
@@ -381,7 +381,7 @@ export function TaskForm(props: TaskFormProps) {
             rows={3}
             placeholder="Optional details..."
             defaultValue={dv?.description ?? undefined}
-            className="border rounded-md px-3 py-2 text-sm bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            className="border rounded-md px-3 py-2 text-sm bg-card resize-none focus:outline-none focus:ring-2 focus:ring-ring"
             aria-invalid={!!err("description")}
             aria-describedby={
               err("description") ? "description-error" : undefined
@@ -538,7 +538,7 @@ export function TaskForm(props: TaskFormProps) {
       </div>
 
       {/* ── Right: eligibility panel ───────────────────────────────────── */}
-      <div className="rounded-md border p-4">
+      <div className="rounded-xl border bg-card p-5">
         {isEdit ? (
           <EligibilityPanel
             mode="edit"
