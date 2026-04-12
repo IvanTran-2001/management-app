@@ -14,7 +14,7 @@
 import { useTransition } from "react";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { PermissionAction } from "@prisma/client";
+import { type PermissionAction } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
