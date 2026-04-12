@@ -22,8 +22,10 @@
  */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, LayoutGrid, List, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Toolbar } from "@/components/layout/toolbar";
@@ -50,6 +52,7 @@ import { deleteTaskAction } from "@/app/actions/tasks";
 type Task = {
   id: string;
   name: string;
+  color: string;
   description: string | null;
   durationMin: number;
   minPeople: number;
@@ -96,6 +99,7 @@ export function TaskTable({
   const [sort, setSort] = useState<SortOption>("name-asc");
   const [filterRoleId, setFilterRoleId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [view, setView] = useState<"list" | "card">("list");
 
   // Filter by search and role
   let visible = tasks.filter((t) =>
@@ -212,6 +216,37 @@ export function TaskTable({
             <a href={`/orgs/${orgId}/tasks/new`}>+ Create Task</a>
           </Button>
         )}
+        {/* View toggle */}
+        <div className="flex items-center rounded-md border overflow-hidden ml-1">
+          <button
+            type="button"
+            onClick={() => setView("list")}
+            aria-label="List view"
+            aria-pressed={view === "list"}
+            className={cn(
+              "p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              view === "list"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted",
+            )}
+          >
+            <List className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("card")}
+            aria-label="Card view"
+            aria-pressed={view === "card"}
+            className={cn(
+              "p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              view === "card"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted",
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+        </div>
       </Toolbar>
 
       {visible.length === 0 ? (
@@ -220,18 +255,117 @@ export function TaskTable({
             ? "No tasks yet."
             : "No tasks match your filters."}
         </p>
+      ) : view === "card" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((task) => (
+            <div
+              key={task.id}
+              className="rounded-xl border bg-card shadow-sm hover:shadow-md transition-all overflow-hidden relative group"
+            >
+              {/* Color accent bar */}
+              <div className="h-1.5 w-full" style={{ backgroundColor: task.color }} />
+              <Link
+                href={`/orgs/${orgId}/tasks/${task.id}`}
+                className="block p-4 cursor-pointer"
+              >
+                <div className="flex flex-col gap-3">
+                  <div className="font-semibold text-sm leading-snug">{task.name}</div>
+                  {task.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                      {task.description}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {task.durationMin} min
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {task.minPeople}+ people
+                    </span>
+                  </div>
+                  {task.eligibility.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {task.eligibility.map((e) => (
+                        <span
+                          key={e.role.id}
+                          className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium"
+                        >
+                          {e.role.color && (
+                            <span
+                              className="h-1.5 w-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: e.role.color }}
+                            />
+                          )}
+                          {e.role.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Link>
+              {canManageTasks && (
+                <div className="absolute top-3 right-3">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-100 transition-opacity sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:focus-visible:opacity-100 sm:focus-visible:pointer-events-auto"
+                        disabled={isPending}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Task actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/orgs/${orgId}/tasks/${task.id}/edit`);
+                        }}
+                      >
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/orgs/${orgId}/tasks/new?duplicateFrom=${task.id}`);
+                        }}
+                      >
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(task);
+                        }}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
+        <div className="rounded-lg border bg-card overflow-hidden shadow-sm">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                <th className="text-left px-4 py-2.5 font-medium">Title</th>
-                <th className="text-left px-4 py-2.5 font-medium">
+            <thead>
+              <tr className="border-b bg-muted/40">
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Description
                 </th>
-                <th className="text-left px-4 py-2.5 font-medium">Duration</th>
-                <th className="text-left px-4 py-2.5 font-medium">People</th>
-                <th className="text-left px-4 py-2.5 font-medium">Role</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Duration</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">People</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Role</th>
                 {canManageTasks && <th className="w-10" />}
               </tr>
             </thead>
@@ -246,7 +380,7 @@ export function TaskTable({
                     if (e.target !== e.currentTarget) return;
                     router.push(`/orgs/${orgId}/tasks/${task.id}`);
                   }}
-                  className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  className="border-b last:border-0 hover:bg-primary/5 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                 >
                   <td className="px-4 py-3 font-medium">{task.name}</td>
                   <td className="px-4 py-3 text-muted-foreground max-w-60 truncate">
@@ -264,8 +398,14 @@ export function TaskTable({
                         {task.eligibility.map((e) => (
                           <span
                             key={e.role.id}
-                            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-muted"
+                            className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium"
                           >
+                            {e.role.color && (
+                              <span
+                                className="h-1.5 w-1.5 rounded-full shrink-0"
+                                style={{ backgroundColor: e.role.color }}
+                              />
+                            )}
                             {e.role.name}
                           </span>
                         ))}

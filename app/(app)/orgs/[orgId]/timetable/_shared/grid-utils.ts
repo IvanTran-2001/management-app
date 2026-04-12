@@ -26,6 +26,14 @@ export function minToHHMM(min: number): string {
   return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 }
 
+export function minTo12h(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  const period = h < 12 ? "am" : "pm";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
 export function hhmmToMin(hhmm: string): number | null {
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hhmm);
   if (!match) return null;

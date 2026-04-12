@@ -3,6 +3,30 @@
 import { useRef, useEffect } from "react";
 import { HOUR_HEIGHT, calcDropTimeMin, assignColumns } from "./grid-utils";
 
+/**
+ * Converts any CSS color to an rgba() string with the given alpha.
+ * Handles 3-digit (#rgb), 6-digit (#rrggbb) and 8-digit (#rrggbbaa) hex.
+ * Falls back to `color-mix` for non-hex values (rgb, hsl, named colors).
+ */
+function withAlpha(color: string, alpha: number): string {
+  const hex = color.trim();
+  if (hex.startsWith("#")) {
+    let r: number, g: number, b: number;
+    if (hex.length === 4) {
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    } else {
+      r = parseInt(hex.slice(1, 3), 16);
+      g = parseInt(hex.slice(3, 5), 16);
+      b = parseInt(hex.slice(5, 7), 16);
+    }
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  // For rgb(), hsl(), named colors, CSS variables — use color-mix (supported in all modern browsers)
+  return `color-mix(in srgb, ${color} ${Math.round(alpha * 100)}%, transparent)`;
+}
+
 /** Minimal shape a grid instance must satisfy. */
 export type GridInstance = {
   id: string;
@@ -58,6 +82,9 @@ interface TimeGridProps<
   /** Called when the ··· menu button on a block is clicked. */
   onBlockMenuClick?: (instance: TInstance) => void;
 
+  /** Called when the user clicks a block (non-drag). Use for navigation. */
+  onBlockClick?: (instance: TInstance) => void;
+
   /** Whether blocks should be draggable (move). */
   draggable?: boolean;
 
@@ -68,6 +95,13 @@ interface TimeGridProps<
 
   /** Extra CSS class applied to a column when it is "today" or otherwise highlighted. */
   columnHighlightClass?: (column: TColumnKey) => string | undefined;
+
+  /** Returns a hex/CSS color for a block's border and tinted background. */
+  blockColor?: (instance: TInstance) => string | null | undefined;
+
+  /** Render a shaded band and line at the org's open/close hours. */
+  openTimeMin?: number;
+  closeTimeMin?: number;
 }
 
 /**
@@ -92,10 +126,14 @@ export function TimeGrid<
   onDragLeave,
   dragOver,
   onBlockMenuClick,
+  onBlockClick,
   draggable = true,
   initialScrollMin = 0,
   fillHeight,
   columnHighlightClass,
+  blockColor,
+  openTimeMin,
+  closeTimeMin,
 }: TimeGridProps<TInstance, TColumnKey>) {
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const totalHeight = hours.length * HOUR_HEIGHT;
@@ -110,6 +148,8 @@ export function TimeGrid<
 
   // Auto-scroll to initialScrollMin on column set change
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Track pointer-down position so we can distinguish a click from a drag
+  const pointerDownPos = useRef<{ x: number; y: number; id: string } | null>(null);
   useEffect(() => {
     if (!scrollRef.current) return;
     const scrollTo = Math.max(
@@ -154,7 +194,7 @@ export function TimeGrid<
       className={`rounded-xl border border-border overflow-hidden${fillHeight ? " flex flex-col flex-1 min-h-0" : ""}`}
     >
       {/* Column headers */}
-      <div className="flex border-b border-border bg-muted/50">
+      <div className="flex border-b border-border bg-card">
         <div className="w-14 shrink-0 border-r border-border" />
         {columns.map((col) => (
           <div
@@ -171,8 +211,8 @@ export function TimeGrid<
         ref={scrollRef}
         className={
           fillHeight
-            ? "overflow-y-auto bg-background flex-1 min-h-0"
-            : "overflow-y-auto bg-background"
+            ? "overflow-y-auto bg-card flex-1 min-h-0"
+            : "overflow-y-auto bg-card"
         }
         style={fillHeight ? undefined : { height: "calc(100dvh - 220px)" }}
       >
@@ -200,7 +240,7 @@ export function TimeGrid<
             return (
               <div
                 key={col}
-                className={`flex-1 relative border-r border-border last:border-r-0 transition-colors ${highlightClass ? "bg-muted/30" : ""} ${isDragTarget ? "bg-primary/5" : ""}`}
+                className={`flex-1 relative border-r border-border last:border-r-0 transition-colors ${highlightClass ? "bg-primary/5" : ""} ${isDragTarget ? "bg-primary/10" : ""}`}
                 style={{ height: totalHeight }}
                 onDragOver={(e) => handleColumnDragOver(e, col)}
                 onDragLeave={(e) => {
@@ -209,6 +249,33 @@ export function TimeGrid<
                 }}
                 onDrop={(e) => handleColumnDrop(e, col)}
               >
+                {/* Outside-hours shading */}
+                {openTimeMin !== undefined && openTimeMin > 0 && (
+                  <div
+                    className="absolute inset-x-0 bg-muted/40 pointer-events-none z-0"
+                    style={{ top: 0, height: (openTimeMin / 60) * HOUR_HEIGHT }}
+                  />
+                )}
+                {closeTimeMin !== undefined && closeTimeMin < 1440 && (
+                  <div
+                    className="absolute inset-x-0 bg-muted/40 pointer-events-none z-0"
+                    style={{ top: (closeTimeMin / 60) * HOUR_HEIGHT, height: totalHeight - (closeTimeMin / 60) * HOUR_HEIGHT }}
+                  />
+                )}
+                {/* Open/close boundary lines */}
+                {openTimeMin !== undefined && openTimeMin > 0 && (
+                  <div
+                    className="absolute inset-x-0 border-t-2 border-primary/40 pointer-events-none z-10"
+                    style={{ top: (openTimeMin / 60) * HOUR_HEIGHT }}
+                  />
+                )}
+                {closeTimeMin !== undefined && closeTimeMin < 1440 && (
+                  <div
+                    className="absolute inset-x-0 border-t-2 border-primary/40 pointer-events-none z-10"
+                    style={{ top: (closeTimeMin / 60) * HOUR_HEIGHT }}
+                  />
+                )}
+
                 {/* Hour lines */}
                 {hours.map((h) => (
                   <div
@@ -268,12 +335,49 @@ export function TimeGrid<
                               }
                             : undefined
                         }
-                        className={`absolute rounded border overflow-hidden p-1.5 text-[11px] leading-snug bg-white text-foreground border-gray-300 hover:opacity-90 transition-opacity select-none ${draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
+                        onPointerDown={(e) => {
+                          pointerDownPos.current = { x: e.clientX, y: e.clientY, id: inst.id };
+                        }}
+                        onClick={(e) => {
+                          if (!onBlockClick) return;
+                          const down = pointerDownPos.current;
+                          if (down && down.id === inst.id) {
+                            const dx = e.clientX - down.x;
+                            const dy = e.clientY - down.y;
+                            if (Math.sqrt(dx * dx + dy * dy) > 6) return;
+                          }
+                          e.stopPropagation();
+                          onBlockClick(inst);
+                        }}
+                        onKeyDown={
+                          onBlockClick
+                            ? (e) => {
+                                if (e.key !== "Enter" && e.key !== " ") return;
+                                if (e.key === " ") e.preventDefault();
+                                const down = pointerDownPos.current;
+                                if (down && down.id !== inst.id) return;
+                                e.stopPropagation();
+                                onBlockClick(inst);
+                              }
+                            : undefined
+                        }
+                        role={onBlockClick ? "button" : undefined}
+                        tabIndex={onBlockClick ? 0 : undefined}
+                        className={`absolute rounded-md overflow-hidden p-1.5 text-[11px] leading-snug bg-white border-2 border-primary/50 text-foreground shadow-sm hover:border-primary/80 hover:shadow transition-all select-none ${draggable ? "cursor-grab active:cursor-grabbing" : onBlockClick ? "cursor-pointer" : "cursor-default"}`}
                         style={{
                           top: topPx + 1,
                           height: Math.max(heightPx - 2, 18),
                           left: `${leftPct + 0.5}%`,
                           width: `${widthPct - 1}%`,
+                          ...(blockColor?.(inst)
+                            ? {
+                                borderColor: blockColor(inst)!,
+                                backgroundColor: withAlpha(blockColor(inst)!, 0.094),
+                              }
+                            : {
+                                borderColor: "#9ca3af",
+                                backgroundColor: withAlpha("#9ca3af", 0.094),
+                              }),
                         }}
                       >
                         {renderBlock(inst, heightPx)}

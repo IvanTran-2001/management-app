@@ -86,7 +86,7 @@ function OrgInfoForm({ org, orgId }: { org: OrgData; orgId: string }) {
   }
 
   return (
-    <div className="rounded-lg border p-6 space-y-4">
+    <div className="rounded-lg border bg-card shadow-sm p-6 space-y-4">
       <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
         Location &amp; Hours
       </h2>
@@ -171,7 +171,7 @@ function TransferOwnershipSection({
   return (
     <fieldset
       disabled={disabled}
-      className="rounded-lg border p-6 space-y-4 disabled:opacity-50"
+      className="rounded-lg border bg-card shadow-sm p-6 space-y-4 disabled:opacity-50"
     >
       <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
         Transfer Ownership
@@ -253,7 +253,7 @@ function DeleteOrgSection({
   return (
     <fieldset
       disabled={disabled}
-      className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 space-y-4 disabled:opacity-50"
+      className="rounded-lg border border-destructive/40 bg-destructive/5 shadow-sm p-6 space-y-4 disabled:opacity-50"
     >
       <h2 className="font-semibold text-sm text-destructive uppercase tracking-wide">
         Delete Organization

@@ -28,6 +28,8 @@ export default async function TimetablePage({
     week?: string | string[];
     mode?: string | string[];
     roleId?: string | string[];
+    span?: string | string[];
+    day?: string | string[];
   }>;
 }) {
   const { orgId } = await params;
@@ -37,6 +39,8 @@ export default async function TimetablePage({
   const weekParam = first(rawSearchParams.week);
   const modeParam = first(rawSearchParams.mode);
   const rawRoleId = first(rawSearchParams.roleId) ?? null;
+  const spanParam = first(rawSearchParams.span);
+  const dayParam = first(rawSearchParams.day);
 
   const { userId } = await requireOrgMemberPage(orgId);
 
@@ -50,6 +54,13 @@ export default async function TimetablePage({
       : getMondayDateStr(toLocalDateStr(new Date(), orgTz), orgTz);
 
   const mode = modeParam === "simple" ? "simple" : "calendar";
+  const span = spanParam === "day" ? "day" : "week";
+  const dayStr =
+    dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam)
+      ? dayParam
+      : span === "day" && weekStart
+        ? weekStart
+        : todayStr;
   const [
     instances,
     templates,
@@ -106,8 +117,23 @@ export default async function TimetablePage({
     );
   }
 
-  const timetableHref = (m: string) => {
-    const params = new URLSearchParams({ week: weekStart, mode: m });
+  // Map taskId → role color (use filtered role when active, else first eligible)
+  const taskRoleColorMap = new Map(
+    tasks.map((t) => {
+      if (rawRoleId) {
+        const filteredRole = t.eligibility.find((e) => e.role.id === rawRoleId);
+        return [t.id, filteredRole?.role?.color ?? null];
+      }
+      return [t.id, t.eligibility[0]?.role?.color ?? null];
+    }),
+  );
+  const coloredInstances = filteredInstances.map((inst) => ({
+    ...inst,
+    taskColor: taskRoleColorMap.get(inst.taskId) ?? null,
+  }));
+
+  const timetableHref = (m: string, s = span, d = dayStr) => {
+    const params = new URLSearchParams({ week: weekStart, mode: m, span: s, day: d });
     if (rawRoleId) params.set("roleId", rawRoleId);
     return `/orgs/${orgId}/timetable?${params.toString()}`;
   };
@@ -124,6 +150,32 @@ export default async function TimetablePage({
             selectedRoleId={rawRoleId}
             orgId={orgId}
           />
+
+          {/* Day / Week span picker */}
+          <div className="flex rounded-md overflow-hidden border text-sm font-medium">
+              <Link
+                href={timetableHref(mode, "day", dayStr)}
+                aria-current={span === "day" ? "page" : undefined}
+                className={`px-3 py-1 transition-colors ${
+                  span === "day"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-primary/8 hover:text-primary text-muted-foreground"
+                }`}
+              >
+                Day
+              </Link>
+              <Link
+                href={timetableHref(mode, "week", dayStr)}
+                aria-current={span === "week" ? "page" : undefined}
+                className={`px-3 py-1 border-l transition-colors ${
+                  span === "week"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-primary/8 hover:text-primary text-muted-foreground"
+                }`}
+              >
+                Week
+              </Link>
+            </div>
 
           {/* Calendar / Simple toggle */}
           <div className="flex rounded-md overflow-hidden border text-sm font-medium">
@@ -165,16 +217,30 @@ export default async function TimetablePage({
       </Toolbar>
       <TimetableClient
         orgId={orgId}
-        instances={filteredInstances}
+        instances={coloredInstances}
         weekStart={weekStart}
         openTimeMin={orgMeta?.openTimeMin ?? 360}
         closeTimeMin={orgMeta?.closeTimeMin ?? 1320}
         mode={mode}
+        span={span}
+        dayStr={dayStr}
         fillHeight
         todayStr={todayStr}
         roleId={rawRoleId}
         canManage={canManageTimetable}
-        availableTasks={canManageTimetable ? tasks : undefined}
+        availableTasks={canManageTimetable ? tasks.map((t) => {
+          const displayRole = rawRoleId
+            ? t.eligibility.find((e) => e.role.id === rawRoleId)?.role
+            : t.eligibility[0]?.role;
+          return {
+            id: t.id,
+            name: t.name,
+            durationMin: t.durationMin,
+            color: t.color,
+            roleColor: displayRole?.color ?? null,
+            roleName: displayRole?.name ?? null,
+          };
+        }) : undefined}
         memberships={clientMemberships}
       />
     </div>
