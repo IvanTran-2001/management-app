@@ -173,7 +173,8 @@ export function AppSidebar() {
   // orgId is present on any /orgs/[orgId]/... route, undefined otherwise
   const { orgId } = useParams<{ orgId?: string }>();
   const pathname = usePathname();
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, isMobile, setOpenMobile } = useSidebar();
+  const closeSidebar = () => { if (isMobile) setOpenMobile(false); };
   const [parentOwnerStatus, setParentOwnerStatus] = useState<{
     orgId: string | null;
     isParentOwner: boolean;
@@ -258,7 +259,7 @@ export function AppSidebar() {
                           <span>{item.title}</span>
                         </>
                       ) : (
-                        <Link href={item.url}>
+                        <Link href={item.url} onClick={closeSidebar}>
                           <item.icon />
                           <span>{item.title}</span>
                         </Link>
@@ -272,7 +273,7 @@ export function AppSidebar() {
                   {/* Workspace */}
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={pathname === "/"}>
-                      <Link href="/">
+                      <Link href="/" onClick={closeSidebar}>
                         <LayoutDashboard />
                         <span>Workspace</span>
                       </Link>
@@ -297,7 +298,7 @@ export function AppSidebar() {
                         asChild
                         isActive={isActiveItem("/orgs/new")}
                       >
-                        <Link href="/orgs/new">
+                        <Link href="/orgs/new" onClick={closeSidebar}>
                           <PlusCircle />
                           <span>Create</span>
                         </Link>
@@ -349,7 +350,7 @@ export function AppSidebar() {
               {footerItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActiveItem(item.url)}>
-                    <Link href={item.url}>
+                    <Link href={item.url} onClick={closeSidebar}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
