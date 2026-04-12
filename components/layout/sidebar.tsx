@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
+import { Logo } from "@/components/layout/logo";
 import {
   LayoutDashboard,
   Building2,
@@ -23,6 +24,7 @@ import {
   ShieldCheck,
   Bell,
   Network,
+  PanelLeftClose,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,8 +40,16 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+
+type NavItem = {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  disabled?: boolean;
+};
 
 /**
  * A collapsible nav section with a chevron toggle.
@@ -79,7 +89,7 @@ function NavCollapsible({
   );
 }
 
-function getOrgItems(orgId: string) {
+function getOrgItems(orgId: string): NavItem[] {
   return [
     { title: "Overview", url: `/orgs/${orgId}`, icon: Building2 },
     { title: "Timetable", url: `/orgs/${orgId}/timetable`, icon: Calendar },
@@ -94,9 +104,9 @@ function getOrgItems(orgId: string) {
   ];
 }
 
-function getSettingsItems(orgId: string) {
+function getSettingsItems(orgId: string): NavItem[] {
   return [
-    { title: "Back to Org", url: `/orgs/${orgId}`, icon: ChevronLeft },
+    { title: "Back to Org", url: `/orgs/${orgId}/timetable`, icon: ChevronLeft },
     {
       title: "Organization",
       url: `/orgs/${orgId}/settings/organization`,
@@ -120,7 +130,7 @@ function getSettingsItems(orgId: string) {
  * Returns the correct nav items for the current org context.
  * Derives the active mode from pathname so the component doesn't need to.
  */
-function getNavItems(orgId: string, pathname: string) {
+function getNavItems(orgId: string, pathname: string): NavItem[] {
   if (pathname.startsWith(`/orgs/${orgId}/settings`))
     return getSettingsItems(orgId);
   return getOrgItems(orgId);
@@ -134,7 +144,7 @@ function getFooterItems(
   orgId: string,
   pathname: string,
   isParentOwner: boolean,
-) {
+): NavItem[] {
   if (pathname.startsWith(`/orgs/${orgId}/settings`)) return [];
   return [
     ...(isParentOwner
@@ -163,6 +173,7 @@ export function AppSidebar() {
   // orgId is present on any /orgs/[orgId]/... route, undefined otherwise
   const { orgId } = useParams<{ orgId?: string }>();
   const pathname = usePathname();
+  const { toggleSidebar } = useSidebar();
   const [parentOwnerStatus, setParentOwnerStatus] = useState<{
     orgId: string | null;
     isParentOwner: boolean;
@@ -208,10 +219,19 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="offcanvas">
-      <SidebarHeader className="px-4 py-3">
-        <Link href="/" className="font-semibold text-sm">
-          Management App
-        </Link>
+      <SidebarHeader className="px-4 py-4">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="rounded-lg px-2 py-1 -mx-2 -my-1 hover:bg-primary/8 hover:ring-1 hover:ring-primary/30 transition-all">
+            <Logo className="text-sidebar-foreground" />
+          </Link>
+          <button
+            onClick={toggleSidebar}
+            aria-label="Close sidebar"
+            className="rounded-md p-1.5 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>

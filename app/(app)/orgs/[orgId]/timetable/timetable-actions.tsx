@@ -1,24 +1,8 @@
 "use client";
 
-/**
- * @file timetable-actions.tsx
- * "Actions" dropdown for the timetable toolbar.
- *
- * Manages the open/closed state of `ApplyTemplateDialog` locally so only
- * one import site (the server page) is needed.
- */
-
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   ApplyTemplateDialog,
   type TemplateOption,
@@ -31,8 +15,7 @@ interface TimetableActionsProps {
 }
 
 /**
- * Renders the "Actions" dropdown button and the Apply Template dialog.
- * Provides "Apply Template" (opens dialog) and "Templates" (navigation link).
+ * Renders two action buttons: "Apply Template" (opens dialog) and "Templates" (link).
  */
 export function TimetableActions({
   orgId,
@@ -49,22 +32,12 @@ export function TimetableActions({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
-            Actions <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={openDialog}>
-            Apply Template
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href={`/orgs/${orgId}/timetable/templates`}>Templates</Link>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Button variant="outline" size="sm" onClick={openDialog} className="shrink-0">
+        Apply Template
+      </Button>
+      <Button variant="outline" size="sm" asChild className="shrink-0">
+        <Link href={`/orgs/${orgId}/timetable/templates`}>Templates</Link>
+      </Button>
 
       <ApplyTemplateDialog
         key={dialogKey}

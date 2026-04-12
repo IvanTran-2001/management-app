@@ -148,7 +148,7 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
           {Object.values(PermissionAction).map((action) => (
             <label
               key={action}
-              className="flex items-center gap-3 px-4 py-2.5 text-sm cursor-pointer select-none hover:bg-muted/50"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm cursor-pointer select-none hover:bg-primary/5"
             >
               <input
                 type="checkbox"
@@ -172,7 +172,7 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
         <div className="grid grid-cols-2 gap-3">
           {/* Left — tasks in role */}
           <div className="flex flex-col rounded-lg border border-input overflow-hidden">
-            <p className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50 border-b border-input shrink-0">
+            <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-muted/40 border-b border-input shrink-0">
               In role
             </p>
             <div className="overflow-y-auto max-h-56 divide-y divide-input">
@@ -191,7 +191,7 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
                       type="button"
                       onClick={() => removeTask(task.id)}
                       disabled={isPending}
-                      className="shrink-0 text-destructive hover:text-destructive/70 font-bold leading-none"
+                      className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-destructive hover:bg-destructive/10 transition-colors leading-none text-base"
                       aria-label={`Remove ${task.name}`}
                     >
                       −
@@ -204,7 +204,7 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
 
           {/* Right — available tasks */}
           <div className="flex flex-col rounded-lg border border-input overflow-hidden">
-            <p className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50 border-b border-input shrink-0">
+            <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-muted/40 border-b border-input shrink-0">
               Available
             </p>
             <div className="overflow-y-auto max-h-56 divide-y divide-input">
@@ -225,7 +225,7 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
                       type="button"
                       onClick={() => addTask(task.id)}
                       disabled={isPending}
-                      className="shrink-0 text-primary hover:text-primary/70 font-bold leading-none"
+                      className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-primary hover:bg-primary/10 transition-colors leading-none text-base"
                       aria-label={`Add ${task.name}`}
                     >
                       +

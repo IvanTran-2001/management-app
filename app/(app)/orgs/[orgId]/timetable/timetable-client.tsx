@@ -35,7 +35,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -61,6 +61,7 @@ import {
   formatWeekRange,
   groupBy,
   minToHHMM,
+  minTo12h,
   hhmmToMin,
 } from "./_shared/grid-utils";
 import type { SharedTask } from "./_shared/types";
@@ -90,6 +91,7 @@ export type ClientTimetableInstance = {
   taskId: string;
   date: string;
   startTimeMin: number;
+  taskColor?: string | null;
   isProjected?: boolean;
   status: "TODO" | "IN_PROGRESS" | "DONE" | "SKIPPED";
   scheduledStartAt: string | null;
@@ -174,7 +176,7 @@ function CalendarEditPopup({
   const [localAssignees, setLocalAssignees] = useState(instance.assignees);
   const [addMembershipId, setAddMembershipId] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [, startT] = useTransition();
+  const [isSaving, startT] = useTransition();
 
   const assignedIds = new Set(localAssignees.map((a) => a.membership.id));
   const available = memberships.filter((m) => !assignedIds.has(m.id));
@@ -259,8 +261,8 @@ function CalendarEditPopup({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="w-72 p-4 gap-0" showCloseButton={false}>
-        <DialogHeader className="mb-3">
+      <DialogContent className="w-72 p-4 gap-3" showCloseButton={false}>
+<DialogHeader>
           <DialogTitle>{instance.task.title}</DialogTitle>
         </DialogHeader>
 
@@ -356,22 +358,23 @@ function CalendarEditPopup({
           <Button
             size="sm"
             onClick={handleSave}
-            disabled={canManage && parsedStart == null}
+            disabled={(canManage && parsedStart == null) || isSaving}
             className="flex-1 h-7"
           >
-            Save
+            {isSaving ? "Saving…" : "Save"}
           </Button>
           {canManage && (
             <Button
               size="sm"
               variant="destructive"
               onClick={handleDelete}
+              disabled={isSaving}
               className="h-7"
             >
               Delete
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={onClose} className="h-7">
+          <Button size="sm" variant="ghost" onClick={onClose} disabled={isSaving} className="h-7">
             Cancel
           </Button>
         </div>
@@ -389,24 +392,30 @@ interface CalendarViewProps {
   instances: ClientTimetableInstance[];
   weekStart: string;
   openTimeMin: number;
+  closeTimeMin?: number;
   fillHeight?: boolean;
   orgId: string;
   todayStr: string;
   canManage: boolean;
   availableTasks?: ClientTask[];
   memberships?: ClientMembership[];
+  span?: "day" | "week";
+  dayStr?: string;
 }
 
 function CalendarView({
   instances,
   weekStart,
   openTimeMin,
+  closeTimeMin,
   fillHeight,
   orgId,
   todayStr,
   canManage,
   availableTasks,
   memberships,
+  span = "week",
+  dayStr,
 }: CalendarViewProps) {
   function effStatus(inst: ClientTimetableInstance) {
     return inst.status === "TODO" && inst.date < todayStr
@@ -414,9 +423,12 @@ function CalendarView({
       : inst.status;
   }
   const router = useRouter();
-  const [, startT] = useTransition();
+  const [isDropPending, startT] = useTransition();
 
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const days =
+    span === "day" && dayStr
+      ? [dayStr]
+      : Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   type DragData =
     | { type: "task"; taskId: string }
@@ -453,7 +465,7 @@ function CalendarView({
 
   return (
     <>
-      <div className={`flex gap-4${fillHeight ? " flex-1 min-h-0" : ""}`}>
+      <div className={`relative flex gap-4${fillHeight ? " flex-1 min-h-0" : ""}${isDropPending ? " opacity-50 pointer-events-none" : ""} transition-opacity duration-150`}>
         <TimeGrid
           columns={days}
           instances={instances}
@@ -463,11 +475,23 @@ function CalendarView({
             const today = dayStr === todayStr;
             return (
               <>
-                <div className="font-medium">{getDayName(dayStr)}</div>
                 <div
-                  className={`text-lg font-bold leading-none mt-0.5 ${today ? "text-foreground" : ""}`}
+                  className={`text-[10px] font-semibold tracking-widest uppercase ${
+                    today ? "text-primary" : "text-muted-foreground"
+                  }`}
                 >
-                  {d.getUTCDate()}
+                  {getDayName(dayStr)}
+                </div>
+                <div className="flex justify-center mt-1.5">
+                  <div
+                    className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold leading-none transition-colors ${
+                      today
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground"
+                    }`}
+                  >
+                    {d.getUTCDate()}
+                  </div>
                 </div>
               </>
             );
@@ -482,7 +506,7 @@ function CalendarView({
                   {minToHHMM(inst.startTimeMin)}
                 </div>
                 <Link
-                  href={`/orgs/${orgId}/tasks/${inst.taskId}`}
+                  href={`/orgs/${orgId}/tasks/${inst.taskId}?ref=timetable`}
                   onClick={(e) => e.stopPropagation()}
                   className="font-semibold truncate block hover:underline"
                 >
@@ -512,12 +536,18 @@ function CalendarView({
           onDragLeave={() => setDragOver(null)}
           dragOver={dragOver}
           onBlockMenuClick={memberships ? setEditingInstance : undefined}
+          onBlockClick={(inst) =>
+            router.push(`/orgs/${orgId}/tasks/${inst.taskId}?ref=timetable`)
+          }
           draggable={hasPanel}
           initialScrollMin={initialScrollMin}
           fillHeight={fillHeight}
           columnHighlightClass={(dayStr) =>
-            dayStr === todayStr ? "bg-muted text-foreground" : undefined
+            dayStr === todayStr ? "bg-primary/[0.04] text-foreground" : undefined
           }
+          blockColor={(inst) => inst.taskColor ?? undefined}
+          openTimeMin={openTimeMin}
+          closeTimeMin={closeTimeMin}
         />
         {hasPanel && (
           <TaskPanel
@@ -561,6 +591,8 @@ interface SimpleViewProps {
   canManage: boolean;
   memberships?: ClientMembership[];
   orgId: string;
+  span?: "day" | "week";
+  dayStr?: string;
 }
 
 function SimpleView({
@@ -570,6 +602,8 @@ function SimpleView({
   canManage,
   memberships,
   orgId,
+  span = "week",
+  dayStr,
 }: SimpleViewProps) {
   const router = useRouter();
   const [editingInstance, setEditingInstance] =
@@ -580,7 +614,10 @@ function SimpleView({
       ? "SKIPPED"
       : inst.status;
   }
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const days =
+    span === "day" && dayStr
+      ? [dayStr]
+      : Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const byDate = groupBy(instances, (inst) => inst.date);
 
   return (
@@ -593,13 +630,13 @@ function SimpleView({
           const dayLabel = `${getDayName(dayStr)}, ${getMonthName(d.getUTCMonth())} ${d.getUTCDate()}`;
 
           return (
-            <div key={dayStr} className="rounded-xl border overflow-hidden">
+            <div key={dayStr} className={`rounded-xl border shadow-sm overflow-hidden ${today ? "border-primary/40 bg-card ring-1 ring-primary/20" : "bg-card"}`}>
               <div
-                className={`px-4 py-2.5 flex items-center gap-2 font-semibold text-sm border-b ${today ? "bg-muted/50 text-foreground border-border" : "bg-muted/20"}`}
+                className={`px-4 py-2.5 flex items-center gap-2 font-semibold text-sm border-b ${today ? "bg-primary/8 text-primary border-primary/20" : "bg-muted/20"}`}
               >
                 {dayLabel}
                 {today && (
-                  <span className="text-xs font-normal text-muted-foreground ml-1">
+                  <span className="text-xs font-normal text-primary/70 ml-1">
                     Today
                   </span>
                 )}
@@ -615,6 +652,9 @@ function SimpleView({
                     <tr className="text-xs text-muted-foreground uppercase tracking-wide">
                       <th className="px-3 py-1.5 text-left font-medium w-8">
                         #
+                      </th>
+                      <th className="px-3 py-1.5 text-left font-medium">
+                        Time
                       </th>
                       <th className="px-3 py-1.5 text-left font-medium">
                         Status
@@ -644,10 +684,13 @@ function SimpleView({
                           onClick={() =>
                             memberships && setEditingInstance(inst)
                           }
-                          className={`hover:bg-muted/20 transition-colors ${memberships ? "cursor-pointer" : ""}`}
+                          className={`hover:bg-primary/5 active:bg-primary/10 transition-colors ${memberships ? "cursor-pointer" : ""}`}
                         >
                           <td className="px-3 py-2 text-muted-foreground">
                             {idx + 1}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground text-xs font-mono">
+                            {minTo12h(inst.startTimeMin)}
                           </td>
                           <td className="px-3 py-2">
                             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
@@ -661,7 +704,7 @@ function SimpleView({
                             className={`px-3 py-2 font-medium ${isSkipped ? "line-through text-muted-foreground" : ""}`}
                           >
                             <Link
-                              href={`/orgs/${orgId}/tasks/${inst.taskId}`}
+                              href={`/orgs/${orgId}/tasks/${inst.taskId}?ref=timetable`}
                               onClick={(e) => e.stopPropagation()}
                               className="hover:underline"
                             >
@@ -681,10 +724,10 @@ function SimpleView({
                                   e.stopPropagation();
                                   setEditingInstance(inst);
                                 }}
-                                className="flex items-center justify-center w-6 h-6 rounded bg-muted/50 text-xs font-bold hover:bg-muted transition-colors cursor-pointer"
+                                className="flex items-center justify-center w-6 h-6 rounded hover:bg-muted transition-colors cursor-pointer text-muted-foreground"
                                 aria-label="Edit"
                               >
-                                ···
+                                <MoreHorizontal className="h-3.5 w-3.5" />
                               </button>
                             </td>
                           )}
@@ -731,6 +774,8 @@ interface TimetableClientProps {
   canManage?: boolean;
   availableTasks?: ClientTask[];
   memberships?: ClientMembership[];
+  span?: "day" | "week";
+  dayStr?: string;
 }
 
 export function TimetableClient({
@@ -746,57 +791,122 @@ export function TimetableClient({
   canManage = false,
   availableTasks,
   memberships,
+  span = "week",
+  dayStr,
 }: TimetableClientProps) {
-  const prevWeek = addDays(weekStart, -7);
-  const nextWeek = addDays(weekStart, 7);
-  const makeHref = (w: string, m: string) => {
-    const p = new URLSearchParams({ week: w, mode: m });
+  const effectiveDayStr = dayStr ?? todayStr;
+  const router = useRouter();
+  const [isNavPending, startNavTransition] = useTransition();
+  const navigate = (href: string) => startNavTransition(() => router.push(href));
+
+  const makeHref = (
+    w: string,
+    m: string,
+    s: "day" | "week" = span,
+    d?: string,
+  ) => {
+    const p = new URLSearchParams({ week: w, mode: m, span: s });
+    if (d) p.set("day", d);
     if (roleId) p.set("roleId", roleId);
     return `/orgs/${orgId}/timetable?${p.toString()}`;
   };
+
+  let prevHref: string;
+  let nextHref: string;
+  let navLabel: string;
+
+  if (span === "day") {
+    const prevDay = addDays(effectiveDayStr, -1);
+    const nextDay = addDays(effectiveDayStr, 1);
+    prevHref = makeHref(prevDay, mode, "day", prevDay);
+    nextHref = makeHref(nextDay, mode, "day", nextDay);
+    const d = new Date(effectiveDayStr + "T00:00:00Z");
+    navLabel = `${getDayName(effectiveDayStr)}, ${getMonthName(d.getUTCMonth())} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+  } else {
+    prevHref = makeHref(addDays(weekStart, -7), mode);
+    nextHref = makeHref(addDays(weekStart, 7), mode);
+    navLabel = formatWeekRange(weekStart);
+  }
+
+  const todayHref =
+    span === "day"
+      ? makeHref(todayStr, mode, "day", todayStr)
+      : makeHref(todayStr, mode, "week");
+
+  const isOnToday =
+    span === "day"
+      ? effectiveDayStr === todayStr
+      : todayStr >= weekStart && todayStr < addDays(weekStart, 7);
 
   return (
     <div
       className={`flex flex-col gap-4${fillHeight ? " flex-1 min-h-0" : ""}`}
     >
-      <div className="flex items-center justify-between rounded-lg border px-4 py-1.5">
-        <Link href={makeHref(prevWeek, mode)}>
-          <Button variant="ghost" size="sm" className="gap-1">
-            <ChevronLeft className="h-4 w-4" /> Prev
+      <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          className={`h-7 text-xs shrink-0 transition-opacity duration-200${isOnToday ? " opacity-0 pointer-events-none" : ""}`}
+          onClick={() => navigate(todayHref)}
+          disabled={isNavPending || isOnToday}
+        >
+          Today
+        </Button>
+        <div className={`h-4 w-px bg-border shrink-0 transition-opacity duration-200${isOnToday ? " opacity-0" : ""}`} />
+        <div className="flex items-center gap-0.5 flex-1 justify-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => navigate(prevHref)}
+            disabled={isNavPending}
+          >
+            <ChevronLeft className="h-4 w-4" />
           </Button>
-        </Link>
-        <span className="text-sm font-medium">
-          {formatWeekRange(weekStart)}
-        </span>
-        <Link href={makeHref(nextWeek, mode)}>
-          <Button variant="ghost" size="sm" className="gap-1">
-            Next <ChevronRight className="h-4 w-4" />
+          <span className={`text-sm font-medium min-w-52 text-center transition-opacity duration-150${isNavPending ? " opacity-50" : ""}`}>
+            {navLabel}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => navigate(nextHref)}
+            disabled={isNavPending}
+          >
+            <ChevronRight className="h-4 w-4" />
           </Button>
-        </Link>
+        </div>
       </div>
 
-      {mode === "calendar" ? (
-        <CalendarView
-          instances={instances}
-          weekStart={weekStart}
-          openTimeMin={openTimeMin}
-          fillHeight={fillHeight}
-          orgId={orgId}
-          todayStr={todayStr}
-          canManage={canManage}
-          availableTasks={availableTasks}
-          memberships={memberships}
-        />
-      ) : (
-        <SimpleView
-          instances={instances}
-          weekStart={weekStart}
-          todayStr={todayStr}
-          canManage={canManage}
-          memberships={memberships}
-          orgId={orgId}
-        />
-      )}
+      <div className={`transition-opacity duration-150${isNavPending ? " opacity-40 pointer-events-none" : ""}${fillHeight ? " flex-1 min-h-0 flex flex-col" : ""}`}>
+        {mode === "calendar" ? (
+          <CalendarView
+            instances={instances}
+            weekStart={weekStart}
+            openTimeMin={openTimeMin}
+            closeTimeMin={closeTimeMin}
+            fillHeight={fillHeight}
+            orgId={orgId}
+            todayStr={todayStr}
+            canManage={canManage}
+            availableTasks={availableTasks}
+            memberships={memberships}
+            span={span}
+            dayStr={effectiveDayStr}
+          />
+        ) : (
+          <SimpleView
+            instances={instances}
+            weekStart={weekStart}
+            todayStr={todayStr}
+            canManage={canManage}
+            memberships={memberships}
+            orgId={orgId}
+            span={span}
+            dayStr={effectiveDayStr}
+          />
+        )}
+      </div>
     </div>
   );
 }
