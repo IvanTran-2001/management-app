@@ -72,7 +72,9 @@ function buildCrumbs(pathname: string): BreadcrumbItem[] {
     if (seg in SEGMENT_LABELS) {
       breadcrumbs.push({ label: SEGMENT_LABELS[seg], href });
     } else if (looksLikeId(seg)) {
-      breadcrumbs.push({ label: seg, href, loading: true });
+      const parent = i > 0 ? segments[i - 1] : null;
+      const isResolvable = parent && parent in PARENT_TO_TYPE;
+      breadcrumbs.push({ label: seg, href, loading: isResolvable });
     } else {
       breadcrumbs.push({ label: seg, href });
     }
@@ -117,6 +119,9 @@ export function PageHeader() {
       const ctrl = new AbortController();
       controllers.push(ctrl);
 
+      // Capture the crumb index (account for "Overview" at index 0)
+      const crumbIdx = i + 1;
+
       fetch(
         `/api/orgs/${orgId}/entity-name?type=${encodeURIComponent(type)}&id=${encodeURIComponent(seg)}`,
         { signal: ctrl.signal },
@@ -125,8 +130,8 @@ export function PageHeader() {
           if (r.ok) return r.json();
           // Non-OK response: clear loading state, keep segment as label
           setCrumbs((prev) =>
-            prev.map((c) =>
-              c.label === seg && c.loading
+            prev.map((c, idx) =>
+              idx === crumbIdx && c.loading
                 ? { ...c, label: seg, loading: false }
                 : c,
             ),
@@ -136,18 +141,20 @@ export function PageHeader() {
         .then((data: { name: string } | null) => {
           if (!data?.name) return;
           setCrumbs((prev) =>
-            prev.map((c) =>
-              c.label === seg && c.loading
+            prev.map((c, idx) =>
+              idx === crumbIdx && c.loading
                 ? { ...c, label: data.name, loading: false }
                 : c,
             ),
           );
         })
-        .catch(() => {
-          // Error (network, abort): clear loading state, keep segment as label
+        .catch((error) => {
+          // Ignore aborted requests
+          if (error.name === 'AbortError') return;
+          // Error (network): clear loading state, keep segment as label
           setCrumbs((prev) =>
-            prev.map((c) =>
-              c.label === seg && c.loading
+            prev.map((c, idx) =>
+              idx === crumbIdx && c.loading
                 ? { ...c, label: seg, loading: false }
                 : c,
             ),

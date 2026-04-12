@@ -61,22 +61,22 @@ export function TemplatesClient({ orgId, templates }: TemplatesClientProps) {
         <Toolbar>
           <div />
           <div className="flex items-center gap-2">
-            <Link href={`/orgs/${orgId}/timetable/templates/new`}>
-              <Button size="sm" className="gap-1.5">
+            <Button asChild size="sm" className="gap-1.5">
+              <Link href={`/orgs/${orgId}/timetable/templates/new`}>
                 <Plus className="h-3.5 w-3.5" /> New Template
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             {viewToggle}
           </div>
         </Toolbar>
         <div className="flex flex-col items-center gap-3 py-16 text-center text-muted-foreground">
           <CalendarDays className="h-10 w-10 opacity-30" />
           <p className="text-sm">No templates yet. Create one to get started.</p>
-          <Link href={`/orgs/${orgId}/timetable/templates/new`}>
-            <Button variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/orgs/${orgId}/timetable/templates/new`}>
               Create Template
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </>
     );
@@ -87,11 +87,11 @@ export function TemplatesClient({ orgId, templates }: TemplatesClientProps) {
       <Toolbar>
         <div />
         <div className="flex items-center gap-2">
-          <Link href={`/orgs/${orgId}/timetable/templates/new`}>
-            <Button size="sm" className="gap-1.5">
+          <Button asChild size="sm" className="gap-1.5">
+            <Link href={`/orgs/${orgId}/timetable/templates/new`}>
               <Plus className="h-3.5 w-3.5" /> New Template
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           {viewToggle}
         </div>
       </Toolbar>
