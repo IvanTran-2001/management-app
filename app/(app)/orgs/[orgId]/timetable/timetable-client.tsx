@@ -35,7 +35,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutList, MoreHorizontal, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,6 +44,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   createTimetableEntryAction,
   updateTimetableEntryAction,
@@ -463,6 +470,9 @@ function CalendarView({
     });
   }
 
+  const isMobile = useIsMobile();
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+
   return (
     <>
       <div className={`relative flex gap-4${fillHeight ? " flex-1 min-h-0" : ""}${isDropPending ? " opacity-50 pointer-events-none" : ""} transition-opacity duration-150`}>
@@ -549,7 +559,7 @@ function CalendarView({
           openTimeMin={openTimeMin}
           closeTimeMin={closeTimeMin}
         />
-        {hasPanel && (
+        {hasPanel && !isMobile && (
           <TaskPanel
             tasks={availableTasks}
             fillHeight={fillHeight}
@@ -564,6 +574,39 @@ function CalendarView({
           />
         )}
       </div>
+
+      {/* Mobile: floating Tasks button + Sheet */}
+      {hasPanel && isMobile && (
+        <>
+          <button
+            onClick={() => setTaskPanelOpen(true)}
+            className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg px-4 py-2.5 text-sm font-medium active:scale-95 transition-transform"
+            aria-label="Open task list"
+          >
+            <LayoutList className="h-4 w-4" />
+            Tasks
+          </button>
+          <Sheet open={taskPanelOpen} onOpenChange={setTaskPanelOpen}>
+            <SheetContent side="bottom" className="h-[70vh] p-0 flex flex-col">
+              <SheetHeader className="px-4 pt-4 pb-2 border-b shrink-0">
+                <SheetTitle>Tasks</SheetTitle>
+              </SheetHeader>
+              <TaskPanel
+                tasks={availableTasks}
+                onDragStart={(taskId, e) => {
+                  dragDataRef.current = { type: "task", taskId };
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
+                onDragEnd={() => {
+                  dragDataRef.current = null;
+                  setDragOver(null);
+                  setTaskPanelOpen(false);
+                }}
+              />
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
 
       {editingInstance && memberships && (
         <CalendarEditPopup
