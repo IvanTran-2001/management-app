@@ -1,12 +1,11 @@
 "use client";
 
 /**
- * TaskViewActions — Actions dropdown for the task view page.
+ * TaskViewActions — Actions for the task view page.
  *
- * Renders an "Actions ▼" dropdown with:
- *   - Edit — navigates to the edit page via a Next.js Link.
- *   - Delete — shows an inline confirmation overlay, then calls
- *     `deleteTaskAction` and redirects to the tasks list on success.
+ * Renders an Edit button (navigates to edit page) and a Delete button
+ * (shows an inline confirmation overlay, then calls `deleteTaskAction`
+ * and redirects to the tasks list on success).
  *
  * Shown only when the viewer holds `MANAGE_TASKS` (gated server-side in the
  * parent page; this component receives no auth props).
@@ -14,16 +13,9 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { deleteTaskAction } from "@/app/actions/tasks";
 
 interface Props {
@@ -51,25 +43,23 @@ export function TaskViewActions({ orgId, taskId, taskName }: Props) {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
-            Actions <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link href={`/orgs/${orgId}/tasks/${taskId}/edit`}>Edit</Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onClick={() => setConfirming(true)}
-          >
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/orgs/${orgId}/tasks/${taskId}/edit`}>
+            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+            Edit
+          </Link>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+          onClick={() => setConfirming(true)}
+        >
+          <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+          Delete
+        </Button>
+      </div>
 
       {confirming && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

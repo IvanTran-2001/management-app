@@ -18,12 +18,12 @@ import type { ServiceResult } from "./types";
 export type RoleWithPermissions = {
   id: string;
   name: string;
-  color: string | null;
+  color: string;
   key: string;
   isDeletable: boolean;
   isDefault: boolean;
   permissions: { action: PermissionAction }[];
-  eligibleFor: { task: { id: string; name: string; color: string | null } }[];
+  eligibleFor: { task: { id: string; name: string; color: string } }[];
 };
 
 /**
@@ -125,7 +125,7 @@ export async function createRole(
       data: {
         orgId,
         name: data.name,
-        color: data.color ?? null,
+        color: data.color ?? "#808080",
         key: crypto.randomUUID(),
         isDeletable: true,
         isDefault: false,
@@ -211,7 +211,7 @@ export async function updateRole(
 
     await tx.role.update({
       where: { id: roleId },
-      data: { name: data.name, color: data.color ?? null },
+      data: { name: data.name, color: data.color ?? "#808080" },
     });
     await tx.permission.deleteMany({ where: { roleId } });
     if (permissionActions.length > 0) {

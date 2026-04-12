@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
 import { createOrg, joinFranchise } from "@/app/actions/orgs";
+import { useBreadcrumbOverride } from "@/components/layout/breadcrumb-context";
 
 function timeToMinutes(time: string) {
   const [h, m] = time.split(":").map(Number);
@@ -117,7 +118,7 @@ function ScheduleFields({
                 type="button"
                 onClick={() => toggleDay(key)}
                 className={[
-                  "px-3 py-1.5 rounded-md text-sm font-medium border transition-colors",
+                  "px-3 py-1.5 rounded-md text-sm font-medium border transition-colors cursor-pointer",
                   active
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-muted-foreground border-border hover:border-primary/50",
@@ -196,7 +197,7 @@ function CreateOrgForm({ onSwitch }: { onSwitch: () => void }) {
         setError(result.error);
         return;
       }
-      router.push(`/orgs/${result.orgId}`);
+      router.push(`/orgs/${result.orgId}/timetable`);
     } catch {
       setError("Something went wrong");
     } finally {
@@ -236,7 +237,7 @@ function CreateOrgForm({ onSwitch }: { onSwitch: () => void }) {
         <button
           type="button"
           onClick={onSwitch}
-          className="text-sm font-medium text-primary hover:underline"
+          className="text-sm font-medium text-primary hover:underline cursor-pointer"
         >
           Join a Franchise instead
         </button>
@@ -267,8 +268,7 @@ function JoinFranchiseForm({ onSwitch }: { onSwitch: () => void }) {
         setError(result.error);
         return;
       }
-      router.push(`/orgs/${result.orgId}`);
-    } catch {
+      router.push(`/orgs/${result.orgId}/timetable`);    } catch {
       setError("Something went wrong");
     } finally {
       setLoading(false);
@@ -308,7 +308,7 @@ function JoinFranchiseForm({ onSwitch }: { onSwitch: () => void }) {
         <button
           type="button"
           onClick={onSwitch}
-          className="text-sm font-medium text-primary hover:underline"
+          className="text-sm font-medium text-primary hover:underline cursor-pointer"
         >
           Create an Organization instead
         </button>
@@ -321,6 +321,12 @@ function JoinFranchiseForm({ onSwitch }: { onSwitch: () => void }) {
 
 export default function NewOrgPage() {
   const [mode, setMode] = useState<"create" | "join">("create");
+  const { setOverride } = useBreadcrumbOverride();
+
+  useEffect(() => {
+    setOverride(mode === "join" ? "Join Franchise" : "Create Organization");
+    return () => setOverride(null);
+  }, [mode, setOverride]);
 
   return (
     <div className="max-w-md mx-auto mt-12 pb-16">

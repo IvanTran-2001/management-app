@@ -37,6 +37,7 @@ import {
 import { deleteRoleAction } from "@/app/actions/roles";
 import type { RoleWithPermissions } from "@/lib/services/roles";
 import { ROLE_KEYS } from "@/lib/rbac";
+import { cn } from "@/lib/utils";
 
 // ─── Permission label formatter ──────────────────────────────────────────────
 
@@ -143,17 +144,17 @@ export function RolesClient({ orgId, roles }: Props) {
   }
 
   return (
-    <div className="rounded-lg border overflow-hidden">
+    <div className="rounded-lg border bg-card overflow-hidden shadow-sm">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b bg-muted/50">
-            <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+          <tr className="border-b bg-muted/40">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Role name
             </th>
-            <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Permissions
             </th>
-            <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Tasks
             </th>
             <th className="w-10" />
@@ -163,7 +164,7 @@ export function RolesClient({ orgId, roles }: Props) {
           {roles.map((role, i) => (
             <tr
               key={role.id}
-              className={i < roles.length - 1 ? "border-b" : ""}
+              className={cn("hover:bg-primary/5 transition-colors", i < roles.length - 1 ? "border-b" : "")}
             >
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
@@ -194,7 +195,7 @@ export function RolesClient({ orgId, roles }: Props) {
                     {role.permissions.map(({ action }) => (
                       <span
                         key={action}
-                        className="rounded bg-muted px-1.5 py-0.5 text-xs"
+                        className="rounded-md border px-1.5 py-0.5 text-xs font-medium"
                       >
                         {formatPermissionLabel(action)}
                       </span>

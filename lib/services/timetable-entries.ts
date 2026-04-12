@@ -461,6 +461,7 @@ export type WeekTimetableInstance = {
   taskId: string;
   date: string;
   startTimeMin: number;
+  taskColor: string | null;
   status: "TODO" | "IN_PROGRESS" | "DONE" | "SKIPPED";
   scheduledStartAt: string;
   scheduledEndAt: string;
@@ -503,6 +504,7 @@ export async function getWeekTimetableInstances(
       taskId: inst.taskId,
       date,
       startTimeMin: localStartTimeMin,
+      taskColor: inst.taskColor,
       status: inst.status as WeekTimetableInstance["status"],
       scheduledStartAt: new Date(startMs).toISOString(),
       scheduledEndAt: new Date(endMs).toISOString(),

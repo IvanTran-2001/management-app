@@ -3,8 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
+import { NavbarSidebarTrigger, NavbarLogo, NavbarLogoSpacer } from "@/components/layout/navbar-sidebar-trigger";
 import { Bell } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,13 +50,9 @@ export const NavBar = async () => {
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4">
       {/* Left: sidebar toggle, app title, org switcher */}
       <div className="flex items-center gap-2">
-        <SidebarTrigger />
-        <Link
-          href="/"
-          className="text-sm font-bold tracking-tight select-none px-1"
-        >
-          Friend<span className="text-primary">Chise</span>
-        </Link>
+        <NavbarSidebarTrigger />
+        <NavbarLogo />
+        <NavbarLogoSpacer />
         <OrgSwitcher orgs={orgs} />
       </div>
 
@@ -67,7 +63,7 @@ export const NavBar = async () => {
           variant="ghost"
           size="icon"
           aria-label="Notifications"
-          className="relative h-9 w-9 rounded-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900"
+          className="relative h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent"
         >
           <Bell className="h-4 w-4" />
           <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center px-0.5 leading-none">
@@ -84,7 +80,7 @@ export const NavBar = async () => {
                 variant="ghost"
                 size="icon"
                 aria-label="Open user menu"
-                className="h-9 w-9 rounded-full bg-yellow-400 hover:bg-yellow-500 overflow-hidden p-0"
+                className="h-9 w-9 rounded-full bg-primary hover:bg-primary/90 overflow-hidden p-0 flex items-center justify-center"
               >
                 {user.image ? (
                   <Image
@@ -95,7 +91,7 @@ export const NavBar = async () => {
                     className="rounded-full object-cover"
                   />
                 ) : (
-                  <span className="text-sm font-semibold text-yellow-900">
+                  <span className="text-sm font-semibold text-primary-foreground">
                     {user.name?.[0]?.toUpperCase() ?? "?"}
                   </span>
                 )}
