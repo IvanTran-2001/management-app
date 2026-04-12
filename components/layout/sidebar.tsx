@@ -144,14 +144,16 @@ function getFooterItems(
   orgId: string,
   pathname: string,
   isParentOwner: boolean,
+  parentOrgId: string | null,
 ): NavItem[] {
   if (pathname.startsWith(`/orgs/${orgId}/settings`)) return [];
+  const franchiseeOrgId = isParentOwner ? orgId : parentOrgId;
   return [
-    ...(isParentOwner
+    ...(franchiseeOrgId
       ? [
           {
             title: "Franchisee",
-            url: `/orgs/${orgId}/franchisee`,
+            url: `/orgs/${franchiseeOrgId}/franchisee`,
             icon: Network,
           },
         ]
@@ -178,7 +180,8 @@ export function AppSidebar() {
   const [parentOwnerStatus, setParentOwnerStatus] = useState<{
     orgId: string | null;
     isParentOwner: boolean;
-  }>({ orgId: null, isParentOwner: false });
+    parentOrgId: string | null;
+  }>({ orgId: null, isParentOwner: false, parentOrgId: null });
 
   useEffect(() => {
     if (!orgId) return;
@@ -192,6 +195,7 @@ export function AppSidebar() {
         setParentOwnerStatus({
           orgId,
           isParentOwner: d.isParentOwner ?? false,
+          parentOrgId: d.parentOrgId ?? null,
         }),
       )
       .catch(() => {});
@@ -201,10 +205,12 @@ export function AppSidebar() {
   // Only true when the stored status is for the current org (prevents stale flash on org switch)
   const isParentOwner =
     parentOwnerStatus.orgId === orgId && parentOwnerStatus.isParentOwner;
+  const parentOrgId =
+    parentOwnerStatus.orgId === orgId ? parentOwnerStatus.parentOrgId : null;
 
   const navItems = orgId ? getNavItems(orgId, pathname) : [];
   const footerItems = orgId
-    ? getFooterItems(orgId, pathname, isParentOwner)
+    ? getFooterItems(orgId, pathname, isParentOwner, parentOrgId)
     : [];
 
   /**

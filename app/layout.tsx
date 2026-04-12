@@ -3,12 +3,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-// Using system fonts as fallback to avoid network requests during build
-const fontVariables = {
-  sans: "--font-sans",
-  logo: "--font-logo",
-  mono: "--font-mono",
-};
 
 export const metadata: Metadata = {
   title: "FriendChise",
