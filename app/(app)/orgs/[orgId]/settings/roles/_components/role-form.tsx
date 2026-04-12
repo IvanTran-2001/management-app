@@ -16,7 +16,7 @@
  */
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { PermissionAction } from "@prisma/client";
+import { PERMISSION_ACTIONS, type PermissionAction } from "@/lib/constants";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -145,7 +145,7 @@ export function RoleForm({ orgId, role, tasks }: RoleFormProps) {
       <div className="space-y-1.5">
         <p className="text-sm font-medium">Permissions</p>
         <div className="rounded-lg border border-input divide-y divide-input">
-          {Object.values(PermissionAction).map((action) => (
+          {PERMISSION_ACTIONS.map((action) => (
             <label
               key={action}
               className="flex items-center gap-3 px-4 py-2.5 text-sm cursor-pointer select-none hover:bg-primary/5"
