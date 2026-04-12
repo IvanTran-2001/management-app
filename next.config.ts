@@ -16,7 +16,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  optimizeFonts: false,
+  turbo: {
+    resolveAlias: {
+      '@': './src',
+    },
+  },
 };
 
 export default nextConfig;
