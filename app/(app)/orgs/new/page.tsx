@@ -330,6 +330,8 @@ function JoinFranchiseForm({
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
+export const dynamic = "force-dynamic";
+
 export default function NewOrgPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
