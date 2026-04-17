@@ -17,6 +17,13 @@ export type InviteItem = {
   metadata: unknown;
 };
 
+export type NotificationItem = {
+  id: string;
+  message: string;
+  seenAt: Date | null;
+  createdAt: Date;
+};
+
 /**
  * Returns all invites visible in the notification panel for a user:
  * - All PENDING invites (always shown)
@@ -78,6 +85,39 @@ export async function getUnseenInviteCount(userId: string): Promise<number> {
 export async function markInvitesSeen(userId: string): Promise<void> {
   await prisma.invite.updateMany({
     where: { recipientId: userId, seenAt: null },
+    data: { seenAt: new Date() },
+  });
+}
+
+/**
+ * Returns in-app notifications for a user (newest first), limited to 30.
+ */
+export async function getNotificationsForUser(
+  userId: string,
+): Promise<NotificationItem[]> {
+  return prisma.notification.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+    select: { id: true, message: true, seenAt: true, createdAt: true },
+  });
+}
+
+/**
+ * Returns the count of unseen notifications for a user.
+ */
+export async function getUnseenNotificationCount(
+  userId: string,
+): Promise<number> {
+  return prisma.notification.count({
+    where: { userId, seenAt: null },
+  });
+}
+
+/** Marks all unseen notifications for a user as seen. */
+export async function markNotificationsSeen(userId: string): Promise<void> {
+  await prisma.notification.updateMany({
+    where: { userId, seenAt: null },
     data: { seenAt: new Date() },
   });
 }
@@ -255,6 +295,20 @@ export async function acceptMemberInvite(
         };
     }
     throw e;
+  }
+
+  // Notify the inviter that their invite was accepted.
+  if (invite.invitedById) {
+    const acceptingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+    await prisma.notification.create({
+      data: {
+        userId: invite.invitedById,
+        message: `${acceptingUser?.name ?? "Someone"} accepted your invitation to ${invite.orgName}.`,
+      },
+    });
   }
 
   return { ok: true, data: null };

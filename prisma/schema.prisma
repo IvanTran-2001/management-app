@@ -107,6 +107,7 @@ model User {
   ownedOrgs                 Organization[] @relation("OrgOwner")
   sentInvites               Invite[]       @relation("SentInvites")
   receivedInvites           Invite[]       @relation("ReceivedInvites")
+  receivedNotifications     Notification[] @relation("ReceivedNotifications")
 
   accounts      Account[]
   sessions      Session[]
@@ -489,4 +490,27 @@ model Invite {
   @@index([orgId])
   @@index([recipientId])
   @@index([invitedById])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTIFICATIONS
+// Simple in-app notification records created by server-side events.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+
+  /// The user who should see this notification.
+  userId    String
+  user      User     @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Short human-readable message, e.g. "Alice accepted your invitation to Acme Corp."
+  message   String
+
+  /// When the user opened/dismissed the notification.
+  seenAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
