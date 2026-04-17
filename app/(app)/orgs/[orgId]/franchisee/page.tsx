@@ -8,7 +8,7 @@ export default async function FranchiseePage({
   params: Promise<{ orgId: string }>;
 }) {
   const { orgId } = await params;
-  await requireParentOrgOwnerPage(orgId);
+  await requireParentOrgOwnerPage(orgId, { redirectTo: `/orgs/${orgId}` });
 
   const [franchisees, tokens] = await Promise.all([
     prisma.organization.findMany({
