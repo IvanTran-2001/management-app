@@ -489,6 +489,29 @@ function CalendarEditPopup({
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Returns the Monday (YYYY-MM-DD) of the week containing dateStr. */
+function getMondayOf(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  const dow = d.getUTCDay(); // 0=Sun … 6=Sat
+  return addDays(dateStr, dow === 0 ? -6 : 1 - dow);
+}
+
+/** Formats a date range label, e.g. "Apr 14–16, 2026" or "Apr 30 – May 2, 2026". */
+function formatDayRange(first: string, last: string): string {
+  const fd = new Date(first + "T00:00:00Z");
+  const ld = new Date(last + "T00:00:00Z");
+  const fm = getMonthName(fd.getUTCMonth());
+  const lm = getMonthName(ld.getUTCMonth());
+  if (fd.getUTCMonth() === ld.getUTCMonth()) {
+    return `${fm} ${fd.getUTCDate()}\u2013${ld.getUTCDate()}, ${fd.getUTCFullYear()}`;
+  }
+  return `${fm} ${fd.getUTCDate()} \u2013 ${lm} ${ld.getUTCDate()}, ${fd.getUTCFullYear()}`;
+}
+
+// ---------------------------------------------------------------------------
 // CalendarView
 // ---------------------------------------------------------------------------
 
@@ -505,6 +528,8 @@ interface CalendarViewProps {
   memberships?: ClientMembership[];
   span?: "day" | "week";
   dayStr?: string;
+  /** Called whenever the number of visible calendar columns changes. */
+  onColCountChange?: (n: number) => void;
 }
 
 function CalendarView({
@@ -520,6 +545,7 @@ function CalendarView({
   memberships,
   span = "week",
   dayStr,
+  onColCountChange,
 }: CalendarViewProps) {
   function effStatus(inst: ClientTimetableInstance) {
     return inst.status === "TODO" && inst.date < todayStr
@@ -560,6 +586,12 @@ function CalendarView({
   })();
 
   const days = visibleDays;
+
+  // Notify parent whenever the visible column count changes so it can update
+  // navigation step size and label accordingly.
+  useEffect(() => {
+    onColCountChange?.(days.length);
+  }, [days.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   type DragData =
     | { type: "task"; taskId: string }
@@ -1080,6 +1112,10 @@ export function TimetableClient({
   const navigate = (href: string) =>
     startNavTransition(() => router.push(href));
 
+  // Track actual visible column count (reported by CalendarView via ResizeObserver)
+  // so navigation steps by the right number of days.
+  const [navColCount, setNavColCount] = useState(7);
+
   const makeHref = (
     w: string,
     m: string,
@@ -1103,6 +1139,21 @@ export function TimetableClient({
     nextHref = makeHref(nextDay, mode, "day", nextDay);
     const d = new Date(effectiveDayStr + "T00:00:00Z");
     navLabel = `${getDayName(effectiveDayStr)}, ${getMonthName(d.getUTCMonth())} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+  } else if (navColCount < 7) {
+    // Partial-week view: step by colCount days, always re-anchoring to the
+    // effective day. Compute the visible window for the navLabel.
+    const prevAnchor = addDays(effectiveDayStr, -navColCount);
+    const nextAnchor = addDays(effectiveDayStr, navColCount);
+    prevHref = makeHref(getMondayOf(prevAnchor), mode, "week", prevAnchor);
+    nextHref = makeHref(getMondayOf(nextAnchor), mode, "week", nextAnchor);
+    // Approximate visible range for the label (same algorithm as CalendarView)
+    const allDays7 = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+    const anchorIdx = allDays7.indexOf(effectiveDayStr);
+    const centre = anchorIdx >= 0 ? anchorIdx : 0;
+    const half = Math.floor(navColCount / 2);
+    const start = Math.max(0, Math.min(centre - half, 7 - navColCount));
+    const visRange = allDays7.slice(start, start + navColCount);
+    navLabel = formatDayRange(visRange[0], visRange[visRange.length - 1]);
   } else {
     prevHref = makeHref(addDays(weekStart, -7), mode);
     nextHref = makeHref(addDays(weekStart, 7), mode);
@@ -1180,6 +1231,7 @@ export function TimetableClient({
             memberships={memberships}
             span={span}
             dayStr={effectiveDayStr}
+            onColCountChange={setNavColCount}
           />
         ) : (
           <SimpleView
