@@ -311,7 +311,7 @@ export function OrgSettingsClient({
   const { orgId } = useParams<{ orgId: string }>();
 
   return (
-    <div className="space-y-6 p-6 max-w-2xl">
+    <div className="space-y-6 p-6 max-w-2xl mx-auto">
       <OrgInfoForm org={org} orgId={orgId} />
       <TransferOwnershipSection
         orgId={orgId}

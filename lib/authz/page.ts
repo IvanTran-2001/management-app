@@ -60,7 +60,12 @@ export async function requireParentOrgOwnerPage(
 ): Promise<{ userId: string }> {
   const userId = await getAuthUserId();
   if (!userId) redirect("/signin");
-  if (!(await isParentOrgOwner(orgId, userId))) redirect(redirectTo);
+  if (!(await isParentOrgOwner(orgId, userId)))
+    redirect(
+      redirectTo.includes("?")
+        ? `${redirectTo}&unauthorized=1`
+        : `${redirectTo}?unauthorized=1`,
+    );
   return { userId };
 }
 
@@ -83,8 +88,12 @@ export async function requireOrgPermissionPage(
   const membership = await getOrgMembership(orgId, userId);
   if (!membership) redirect(redirectTo ?? `/orgs/${orgId}`);
 
-  if (!(await memberHasPermission(membership.id, orgId, permission)))
-    redirect(redirectTo ?? `/orgs/${orgId}`);
+  if (!(await memberHasPermission(membership.id, orgId, permission))) {
+    const base = redirectTo ?? `/orgs/${orgId}`;
+    redirect(
+      base.includes("?") ? `${base}&unauthorized=1` : `${base}?unauthorized=1`,
+    );
+  }
 
   return { userId };
 }
