@@ -528,19 +528,27 @@ function CalendarView({
   }
   const router = useRouter();
   const [isDropPending, startT] = useTransition();
-  const [windowWidth, setWindowWidth] = useState(
-    typeof window !== "undefined" ? window.innerWidth : 1024,
-  );
+
+  // Track the actual calendar container width via ResizeObserver so that
+  // zoom level, sidebar state, and task panel are all accounted for (#99).
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(600);
 
   const allDays =
     span === "day" && dayStr
       ? [dayStr]
       : Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  // Adaptive column count for week span on mobile (#99)
+  // Adaptive column count: fit as many days as possible given the container.
+  // Time gutter = w-14 (56px), each column needs at least 90px to be readable.
   const visibleDays = (() => {
     if (span === "day" || allDays.length === 1) return allDays;
-    const colCount = windowWidth < 480 ? 1 : windowWidth < 768 ? 3 : 7;
+    const timeGutter = 56;
+    const minColWidth = 90;
+    const colCount = Math.min(
+      7,
+      Math.max(1, Math.floor((containerWidth - timeGutter) / minColWidth)),
+    );
     if (colCount >= 7) return allDays;
     // Centre the visible window on the active day (dayStr or today)
     const anchor = dayStr ?? todayStr;
@@ -601,13 +609,19 @@ function CalendarView({
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   useEffect(() => {
-    const update = () => {
-      setIsLandscape(window.innerWidth > window.innerHeight);
-      setWindowWidth(window.innerWidth);
-    };
+    const update = () => setIsLandscape(window.innerWidth > window.innerHeight);
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
+  }, []);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      setContainerWidth(entries[0].contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   return (
@@ -616,6 +630,7 @@ function CalendarView({
         className={`flex gap-4${fillHeight ? " flex-1 min-h-0" : ""}${isDropPending ? " opacity-50 pointer-events-none" : ""} transition-opacity duration-150`}
       >
         <div
+          ref={containerRef}
           className={`relative${fillHeight ? " flex-1 min-h-0 flex flex-col" : " flex-1"}`}
         >
           {instances.length === 0 && !isDragging && (
