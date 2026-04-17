@@ -183,6 +183,13 @@ export function AppSidebar() {
   const closeSidebar = () => {
     if (isMobile) setOpenMobile(false);
   };
+  // Keep the sidebar open when navigating within the same org (org ↔ settings).
+  // Only close it when the destination is outside the current org context.
+  const handleNavClick = (url: string) => {
+    if (!isMobile) return;
+    if (orgId && url.startsWith(`/orgs/${orgId}`)) return;
+    setOpenMobile(false);
+  };
   const [parentOwnerStatus, setParentOwnerStatus] = useState<{
     orgId: string | null;
     isParentOwner: boolean;
@@ -274,7 +281,7 @@ export function AppSidebar() {
                           <span>{item.title}</span>
                         </>
                       ) : (
-                        <Link href={item.url} onClick={closeSidebar}>
+                        <Link href={item.url} onClick={() => handleNavClick(item.url)}>
                           <item.icon />
                           <span>{item.title}</span>
                         </Link>
@@ -365,7 +372,7 @@ export function AppSidebar() {
               {footerItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActiveItem(item.url)}>
-                    <Link href={item.url} onClick={closeSidebar}>
+                    <Link href={item.url} onClick={() => handleNavClick(item.url)}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>

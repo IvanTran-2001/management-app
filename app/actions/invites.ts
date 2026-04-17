@@ -16,16 +16,20 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import {
   markInvitesSeen,
+  markNotificationsSeen,
   acceptMemberInvite,
   declineMemberInvite,
   declineFranchiseInvite,
 } from "@/lib/services/invites";
 
-/** Marks all unseen invites for the current user as seen. No-ops when not signed in. */
+/** Marks all unseen invites and notifications for the current user as seen. */
 export async function markInvitesSeenAction(): Promise<void> {
   const session = await auth();
   if (!session?.user?.id) return;
-  await markInvitesSeen(session.user.id);
+  await Promise.all([
+    markInvitesSeen(session.user.id),
+    markNotificationsSeen(session.user.id),
+  ]);
 }
 
 /**

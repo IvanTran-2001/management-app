@@ -41,7 +41,7 @@ import {
   declineMemberInviteAction,
   declineFranchiseInviteAction,
 } from "@/app/actions/invites";
-import type { InviteItem } from "@/lib/services/invites";
+import type { InviteItem, NotificationItem } from "@/lib/services/invites";
 
 function formatRelativeTime(date: Date): string {
   const now = Date.now();
@@ -53,6 +53,30 @@ function formatRelativeTime(date: Date): string {
   if (mins < 60) return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
   return `${days}d ago`;
+}
+
+function NotificationCard({ notification }: { notification: NotificationItem }) {
+  return (
+    <div
+      className={cn(
+        "relative flex gap-3 px-4 py-3.5 transition-colors",
+        !notification.seenAt && "bg-primary/3",
+      )}
+    >
+      {!notification.seenAt && (
+        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-primary" />
+      )}
+      <div className="shrink-0 h-9 w-9 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 ring-1 ring-border">
+        <Check className="size-4" />
+      </div>
+      <div className="flex-1 min-w-0 space-y-0.5">
+        <p className="text-sm leading-snug">{notification.message}</p>
+        <span className="text-[10px] text-muted-foreground">
+          {formatRelativeTime(notification.createdAt)}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function InviteCard({
@@ -222,16 +246,31 @@ function InviteCard({
 
 function NotificationList({
   invites,
+  notifications,
   onAction,
 }: {
   invites: InviteItem[];
+  notifications: NotificationItem[];
   onAction: () => void;
 }) {
   const [onlyUnread, setOnlyUnread] = useState(false);
 
-  const visible = onlyUnread
+  const visibleInvites = onlyUnread
     ? invites.filter((i) => !i.seenAt && i.status === "PENDING")
     : invites;
+
+  const visibleNotifs = onlyUnread
+    ? notifications.filter((n) => !n.seenAt)
+    : notifications;
+
+  // Merge and sort by date descending so all items appear in chronological order.
+  type AnyItem =
+    | { kind: "invite"; data: InviteItem }
+    | { kind: "notif"; data: NotificationItem };
+  const merged: AnyItem[] = [
+    ...visibleInvites.map((i) => ({ kind: "invite" as const, data: i })),
+    ...visibleNotifs.map((n) => ({ kind: "notif" as const, data: n })),
+  ].sort((a, b) => new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime());
 
   return (
     <div className="flex flex-col h-full">
@@ -253,7 +292,7 @@ function NotificationList({
 
       {/* Scrollable list */}
       <div className="flex-1 overflow-y-auto divide-y divide-border/60">
-        {visible.length === 0 ? (
+        {merged.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full py-12 gap-2 text-muted-foreground">
             <Bell className="size-8 opacity-20" />
             <p className="text-sm">
@@ -261,9 +300,13 @@ function NotificationList({
             </p>
           </div>
         ) : (
-          visible.map((invite) => (
-            <InviteCard key={invite.id} invite={invite} onAction={onAction} />
-          ))
+          merged.map((item) =>
+            item.kind === "notif" ? (
+              <NotificationCard key={`n-${item.data.id}`} notification={item.data} />
+            ) : (
+              <InviteCard key={`i-${item.data.id}`} invite={item.data} onAction={onAction} />
+            ),
+          )
         )}
       </div>
 
@@ -281,9 +324,11 @@ function NotificationList({
 export function NotificationPanel({
   invites,
   unseenCount,
+  notifications,
 }: {
   invites: InviteItem[];
   unseenCount: number;
+  notifications: NotificationItem[];
 }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
@@ -291,9 +336,12 @@ export function NotificationPanel({
 
   async function handleOpen(next: boolean) {
     setOpen(next);
-    if (next && unseenCount > 0) {
-      await markInvitesSeenAction();
+    if (next) {
+      // Always refresh so any new invites are fetched from the server.
       router.refresh();
+      if (unseenCount > 0) {
+        await markInvitesSeenAction();
+      }
     }
   }
 
@@ -323,15 +371,15 @@ export function NotificationPanel({
       <Sheet open={open} onOpenChange={handleOpen}>
         <SheetTrigger asChild>{BellButton}</SheetTrigger>
         <SheetContent
-          side="bottom"
-          className="h-[85dvh] p-0 flex flex-col rounded-t-2xl"
+          side="top"
+          className="h-[85dvh] p-0 flex flex-col rounded-b-2xl"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Notifications</SheetTitle>
           </SheetHeader>
           {/* Drag handle */}
           <div className="w-10 h-1 rounded-full bg-muted-foreground/20 mx-auto mt-3 mb-0 shrink-0" />
-          <NotificationList invites={invites} onAction={handleAction} />
+          <NotificationList invites={invites} notifications={notifications} onAction={handleAction} />
         </SheetContent>
       </Sheet>
     );
@@ -345,7 +393,7 @@ export function NotificationPanel({
         sideOffset={8}
         className="w-95 h-120 p-0 flex flex-col overflow-hidden shadow-xl"
       >
-        <NotificationList invites={invites} onAction={handleAction} />
+        <NotificationList invites={invites} notifications={notifications} onAction={handleAction} />
       </PopoverContent>
     </Popover>
   );
