@@ -186,6 +186,7 @@ interface CalendarEditPopupProps {
   open: boolean;
   onClose: () => void;
   onRefresh: () => void;
+  router: ReturnType<typeof useRouter>;
 }
 
 function CalendarEditPopup({
@@ -196,6 +197,7 @@ function CalendarEditPopup({
   open,
   onClose,
   onRefresh,
+  router,
 }: CalendarEditPopupProps) {
   const [startTime, setStartTime] = useState(minToHHMM(instance.startTimeMin));
   const [date, setDate] = useState(instance.date);
@@ -233,7 +235,26 @@ function CalendarEditPopup({
         return;
       }
       onClose();
-      onRefresh();
+
+      // If the date has changed, navigate to the week containing the new date
+      if (date !== instance.date) {
+        const params = new URLSearchParams(window.location.search);
+        const currentMode = params.get("mode") || "calendar";
+        const currentSpan = params.get("span") || "week";
+        const roleId = params.get("roleId");
+
+        const newParams = new URLSearchParams({
+          week: date,
+          mode: currentMode,
+          span: currentSpan,
+        });
+        if (roleId) newParams.set("roleId", roleId);
+
+        router.push(`/orgs/${orgId}/timetable?${newParams.toString()}`);
+      } else {
+        // Only refresh if the date has NOT changed
+        onRefresh();
+      }
     });
   }
 
@@ -749,6 +770,7 @@ function CalendarView({
           open={true}
           onClose={() => setEditingInstance(null)}
           onRefresh={() => router.refresh()}
+          router={router}
         />
       )}
     </>
@@ -942,6 +964,7 @@ function SimpleView({
           open={true}
           onClose={() => setEditingInstance(null)}
           onRefresh={() => router.refresh()}
+          router={router}
         />
       )}
     </>
