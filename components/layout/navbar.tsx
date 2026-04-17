@@ -13,6 +13,8 @@ import { NotificationPanel } from "@/components/layout/notification-panel";
 import {
   getInvitesForUser,
   getUnseenInviteCount,
+  getNotificationsForUser,
+  getUnseenNotificationCount,
 } from "@/lib/services/invites";
 import {
   DropdownMenu,
@@ -54,15 +56,17 @@ export const NavBar = async () => {
         })
     : [];
 
-  const [invites, unseenCount] = user?.id
+  const [invites, unseenCount, notifications, unseenNotifCount] = user?.id
     ? await Promise.all([
         getInvitesForUser(user.id),
         getUnseenInviteCount(user.id),
+        getNotificationsForUser(user.id),
+        getUnseenNotificationCount(user.id),
       ]).catch((error) => {
         console.error("Failed to load invites for navbar", error);
-        return [[], 0] as [never[], number];
+        return [[], 0, [], 0] as [never[], number, never[], number];
       })
-    : [[], 0];
+    : [[], 0, [], 0];
 
   return (
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4">
@@ -79,7 +83,7 @@ export const NavBar = async () => {
       {/* Right: notifications and user menu */}
       <div className="flex items-center gap-2">
         {/* Notification bell */}
-        <NotificationPanel invites={invites} unseenCount={unseenCount} />
+        <NotificationPanel invites={invites} unseenCount={unseenCount + unseenNotifCount} notifications={notifications} />
 
         {/* User avatar — only rendered when a user is signed in */}
         {user && (
