@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -12,14 +12,16 @@ import { toast } from "sonner";
 export function UnauthorizedToast() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const shownRef = useRef(false);
 
   useEffect(() => {
-    if (searchParams.get("unauthorized")) {
+    if (searchParams.get("unauthorized") && !shownRef.current) {
+      shownRef.current = true;
       toast.error("You don't have permission to access that page.");
       // Strip the param from the URL without adding to history
       const url = new URL(window.location.href);
       url.searchParams.delete("unauthorized");
-      router.replace(url.pathname + (url.search || ""));
+      router.replace(url.pathname + url.search + url.hash);
     }
   }, [searchParams, router]);
 
