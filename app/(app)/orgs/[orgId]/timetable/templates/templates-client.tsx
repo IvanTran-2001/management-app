@@ -3,11 +3,50 @@
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, LayoutGrid, List, Plus } from "lucide-react";
+import {
+  CalendarDays,
+  Copy,
+  LayoutGrid,
+  List,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import { Toolbar } from "@/components/layout/toolbar";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  renameTemplateAction,
+  duplicateTemplateAction,
+  deleteTemplateAction,
+} from "@/app/actions/templates";
 
 type Template = {
   id: string;
@@ -21,8 +60,155 @@ interface TemplatesClientProps {
   templates: Template[];
 }
 
-export function TemplatesClient({ orgId, templates }: TemplatesClientProps) {
+// ---------------------------------------------------------------------------
+// Per-template action menu (shared between card + list views)
+// ---------------------------------------------------------------------------
+
+function TemplateMenu({
+  orgId,
+  template,
+}: {
+  orgId: string;
+  template: Template;
+}) {
   const router = useRouter();
+  const [, startT] = useTransition();
+
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameName, setRenameName] = useState(template.name);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  function handleRename() {
+    setRenameName(template.name);
+    setRenameError(null);
+    setRenameOpen(true);
+  }
+
+  function submitRename() {
+    if (!renameName.trim()) {
+      setRenameError("Name is required");
+      return;
+    }
+    startT(async () => {
+      const res = await renameTemplateAction(orgId, template.id, renameName);
+      if (!res.ok) {
+        setRenameError(res.error ?? "Failed to rename");
+        return;
+      }
+      setRenameOpen(false);
+      router.refresh();
+    });
+  }
+
+  function handleDuplicate() {
+    startT(async () => {
+      await duplicateTemplateAction(orgId, template.id);
+      router.refresh();
+    });
+  }
+
+  function confirmDelete() {
+    startT(async () => {
+      await deleteTemplateAction(orgId, template.id);
+      router.refresh();
+    });
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={(e) => e.preventDefault()}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Template actions</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem onClick={handleRename}>
+            <Pencil className="h-3.5 w-3.5 mr-2" />
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDuplicate}>
+            <Copy className="h-3.5 w-3.5 mr-2" />
+            Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setDeleteOpen(true)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Rename dialog */}
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rename template</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5 py-2">
+            <Input
+              value={renameName}
+              onChange={(e) => {
+                setRenameName(e.target.value);
+                setRenameError(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && submitRename()}
+              autoFocus
+            />
+            {renameError && (
+              <p className="text-xs text-destructive">{renameError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitRename}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete &ldquo;{template.name}&rdquo;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the template and all its slots. This
+              action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main client component
+// ---------------------------------------------------------------------------
+
+export function TemplatesClient({ orgId, templates }: TemplatesClientProps) {
   const [view, setView] = usePersistedState<"card" | "list">(
     "templates:view",
     "card",
@@ -44,8 +230,7 @@ export function TemplatesClient({ orgId, templates }: TemplatesClientProps) {
     return (
       <>
         <Toolbar>
-          <div />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <Button asChild size="sm" className="gap-1.5">
               <Link href={`/orgs/${orgId}/timetable/templates/new`}>
                 <Plus className="h-3.5 w-3.5" /> New Template
@@ -72,8 +257,7 @@ export function TemplatesClient({ orgId, templates }: TemplatesClientProps) {
   return (
     <>
       <Toolbar>
-        <div />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           <Button asChild size="sm" className="gap-1.5">
             <Link href={`/orgs/${orgId}/timetable/templates/new`}>
               <Plus className="h-3.5 w-3.5" /> New Template
@@ -87,13 +271,12 @@ export function TemplatesClient({ orgId, templates }: TemplatesClientProps) {
       {view === "card" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((t) => (
-            <Link
-              key={t.id}
-              href={`/orgs/${orgId}/timetable/templates/${t.id}`}
-              className="group rounded-xl border bg-card shadow-sm hover:shadow-md transition-all overflow-hidden"
-            >
-              <div className="flex items-start gap-4 p-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0 group-hover:bg-primary/15 transition-colors mt-0.5">
+            <div key={t.id} className="group relative border bg-card hover:shadow-md transition-all overflow-hidden">
+              <Link
+                href={`/orgs/${orgId}/timetable/templates/${t.id}`}
+                className="flex items-start gap-4 p-5 pr-12"
+              >
+                <div className="flex h-10 w-10 items-center justify-center bg-primary/10 text-primary shrink-0 group-hover:bg-primary/15 transition-colors mt-0.5">
                   <CalendarDays className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -101,24 +284,24 @@ export function TemplatesClient({ orgId, templates }: TemplatesClientProps) {
                     {t.name}
                   </div>
                   <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    <span className="inline-flex items-center bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                       {t.cycleLengthDays} days
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    <span className="inline-flex items-center bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                       {t._count.entries} slots
-                    </span>
-                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                      Draft
                     </span>
                   </div>
                 </div>
+              </Link>
+              <div className="absolute top-3 right-3">
+                <TemplateMenu orgId={orgId} template={t} />
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       ) : (
         /* List view */
-        <div className="rounded-lg border bg-card overflow-hidden shadow-sm">
+        <div className="border bg-card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40">
@@ -131,37 +314,31 @@ export function TemplatesClient({ orgId, templates }: TemplatesClientProps) {
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Slots
                 </th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Status
-                </th>
+                <th className="w-10" />
               </tr>
             </thead>
             <tbody>
               {templates.map((t) => (
                 <tr
                   key={t.id}
-                  role="link"
-                  tabIndex={0}
-                  onClick={() =>
-                    router.push(`/orgs/${orgId}/timetable/templates/${t.id}`)
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      router.push(`/orgs/${orgId}/timetable/templates/${t.id}`);
-                    }
-                  }}
-                  className="border-b last:border-0 hover:bg-primary/5 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50"
+                  className="border-b last:border-0 hover:bg-primary/5 transition-colors group"
                 >
-                  <td className="px-4 py-3 font-medium">{t.name}</td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link
+                      href={`/orgs/${orgId}/timetable/templates/${t.id}`}
+                      className="hover:underline"
+                    >
+                      {t.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {t.cycleLengthDays} days
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {t._count.entries}
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
-                    Draft
+                  <td className="px-2 py-3 text-right">
+                    <TemplateMenu orgId={orgId} template={t} />
                   </td>
                 </tr>
               ))}
