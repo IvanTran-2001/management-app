@@ -23,6 +23,9 @@ import {
   removeTemplateInstanceAssignee,
   countTimetableEntriesInRange,
   applyTemplate,
+  renameTemplate,
+  duplicateTemplate,
+  deleteTemplate,
 } from "@/lib/services/templates";
 
 export type CreateTemplateFormState =
@@ -272,4 +275,68 @@ export async function applyTemplateAction(
 
   revalidatePath(`/orgs/${orgId}/timetable`);
   return { ok: true, created: result.data.created };
+}
+
+/**
+ * Renames a template.
+ * Requires MANAGE_TASKS permission.
+ */
+export async function renameTemplateAction(
+  orgId: string,
+  templateId: string,
+  name: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const authz = await requireOrgPermissionAction(
+    orgId,
+    PermissionAction.MANAGE_TASKS,
+  );
+  if (!authz.ok) return { ok: false, error: "Unauthorized" };
+
+  const result = await renameTemplate(orgId, templateId, name);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  revalidatePath(`/orgs/${orgId}/timetable/templates`);
+  return { ok: true };
+}
+
+/**
+ * Duplicates a template (copies all entries and assignees).
+ * Requires MANAGE_TASKS permission.
+ */
+export async function duplicateTemplateAction(
+  orgId: string,
+  templateId: string,
+): Promise<{ ok: boolean; error?: string; id?: string }> {
+  const authz = await requireOrgPermissionAction(
+    orgId,
+    PermissionAction.MANAGE_TASKS,
+  );
+  if (!authz.ok) return { ok: false, error: "Unauthorized" };
+
+  const result = await duplicateTemplate(orgId, templateId);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  revalidatePath(`/orgs/${orgId}/timetable/templates`);
+  return { ok: true, id: result.data.id };
+}
+
+/**
+ * Permanently deletes a template and all its entries.
+ * Requires MANAGE_TASKS permission.
+ */
+export async function deleteTemplateAction(
+  orgId: string,
+  templateId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const authz = await requireOrgPermissionAction(
+    orgId,
+    PermissionAction.MANAGE_TASKS,
+  );
+  if (!authz.ok) return { ok: false, error: "Unauthorized" };
+
+  const result = await deleteTemplate(orgId, templateId);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  revalidatePath(`/orgs/${orgId}/timetable/templates`);
+  return { ok: true };
 }

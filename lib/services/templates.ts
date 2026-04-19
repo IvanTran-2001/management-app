@@ -3,6 +3,7 @@
  * Service functions for reading and mutating timetable templates and their entries.
  */
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import type { ServiceResult } from "./types";
 import {
   localMidnightUTC,
@@ -461,4 +462,132 @@ export async function applyTemplate(
   });
 
   return { ok: true, data: { created: createData.length } };
+}
+
+/**
+ * Renames a template.
+ */
+export async function renameTemplate(
+  orgId: string,
+  templateId: string,
+  name: string,
+): Promise<ServiceResult<null>> {
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: "Name is required", code: "INVALID" };
+
+  try {
+    const updated = await prisma.template.updateMany({
+      where: { id: templateId, orgId },
+      data: { name: trimmed },
+    });
+    if (updated.count === 0)
+      return { ok: false, error: "Template not found", code: "NOT_FOUND" };
+
+    return { ok: true, data: null };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return {
+        ok: false,
+        error: "A template with that name already exists",
+        code: "INVALID",
+      };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Duplicates a template and all its entries (assignees are also copied).
+ * The copy is named "Copy of <original name>" (or "Copy of Copy of …" if needed).
+ */
+export async function duplicateTemplate(
+  orgId: string,
+  templateId: string,
+): Promise<ServiceResult<{ id: string }>> {
+  const template = await prisma.template.findFirst({
+    where: { id: templateId, orgId },
+    include: {
+      entries: {
+        include: { assignees: { select: { membershipId: true } } },
+      },
+    },
+  });
+  if (!template)
+    return { ok: false, error: "Template not found", code: "NOT_FOUND" };
+
+  const baseName = `Copy of ${template.name}`;
+  const maxRetries = 5;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // Generate candidate name
+    const candidateName = attempt === 0 ? baseName : `${baseName} (${attempt + 1})`;
+
+    try {
+      const copy = await prisma.template.create({
+        data: {
+          orgId,
+          name: candidateName,
+          cycleLengthDays: template.cycleLengthDays,
+          entries: {
+            create: template.entries.map((e) => ({
+              taskId: e.taskId,
+              dayIndex: e.dayIndex,
+              startTimeMin: e.startTimeMin,
+              endTimeMin: e.endTimeMin,
+              priority: e.priority,
+              durationMin: e.durationMin,
+              assignees: {
+                create: e.assignees.map((a) => ({ membershipId: a.membershipId })),
+              },
+            })),
+          },
+        },
+        select: { id: true },
+      });
+
+      return { ok: true, data: { id: copy.id } };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        // Name collision, retry with next suffix
+        if (attempt === maxRetries - 1) {
+          return {
+            ok: false,
+            error: "A template with that name already exists",
+            code: "INVALID",
+          };
+        }
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  // Should never reach here, but TypeScript needs it
+  return {
+    ok: false,
+    error: "A template with that name already exists",
+    code: "INVALID",
+  };
+}
+
+/**
+ * Permanently deletes a template and all its entries (cascade).
+ */
+export async function deleteTemplate(
+  orgId: string,
+  templateId: string,
+): Promise<ServiceResult<null>> {
+  const deleted = await prisma.template.deleteMany({
+    where: { id: templateId, orgId },
+  });
+  if (deleted.count === 0)
+    return { ok: false, error: "Template not found", code: "NOT_FOUND" };
+
+  return { ok: true, data: null };
 }
