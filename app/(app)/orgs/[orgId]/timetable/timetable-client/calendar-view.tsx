@@ -150,6 +150,16 @@ export function CalendarView({
     | { kind: "drop"; col: string; timeMin: number; data: DragData }
     | { kind: "tap"; col: string; timeMin: number; taskId: string };
   const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null);
+  const [suppressDrop, setSuppressDrop] = useState(false);
+
+  const DROP_SUPPRESS_KEY = "timetable-past-drop-warn-suppress";
+
+  function isDropSuppressed(): boolean {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem(DROP_SUPPRESS_KEY);
+    if (!stored) return false;
+    return Date.now() < Number(stored);
+  }
 
   const hasPanel = !!availableTasks;
 
@@ -184,7 +194,7 @@ export function CalendarView({
   }
 
   function handleDrop(col: string, timeMin: number, data: DragData) {
-    if (col < todayStr) {
+    if (col < todayStr && !isDropSuppressed()) {
       setPendingDrop({ kind: "drop", col, timeMin, data });
       return;
     }
@@ -205,7 +215,7 @@ export function CalendarView({
   }
 
   function handleTapPlace(col: string, timeMin: number, taskId: string) {
-    if (col < todayStr) {
+    if (col < todayStr && !isDropSuppressed()) {
       setPendingDrop({ kind: "tap", col, timeMin, taskId });
       return;
     }
@@ -461,6 +471,7 @@ export function CalendarView({
           onClose={() => setEditingInstance(null)}
           onRefresh={() => router.refresh()}
           router={router}
+          todayStr={todayStr}
         />
       )}
 
@@ -480,6 +491,15 @@ export function CalendarView({
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-1 pb-1">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-primary rounded"
+              checked={suppressDrop}
+              onChange={(e) => setSuppressDrop(e.target.checked)}
+            />
+            Don&apos;t warn me again for 24 hours
+          </label>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPendingDrop(null)}>
               Cancel
@@ -487,8 +507,12 @@ export function CalendarView({
             <AlertDialogAction
               onClick={() => {
                 if (!pendingDrop) return;
+                if (suppressDrop) {
+                  localStorage.setItem(DROP_SUPPRESS_KEY, String(Date.now() + 24 * 60 * 60 * 1000));
+                }
                 const p = pendingDrop;
                 setPendingDrop(null);
+                setSuppressDrop(false);
                 if (p.kind === "drop") {
                   executeDrop(p.col, p.timeMin, p.data);
                 } else {

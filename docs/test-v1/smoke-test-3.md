@@ -13,7 +13,7 @@
 |--------|-------|
 | ✅ Fixed from Round 2 | 6 |
 | 🔴 Still broken | 0 |
-| 🆕 New issues found | 0 |
+| 🆕 New issues found | 5 |
 
 ---
 
@@ -36,13 +36,25 @@ All issues from Round 2 have been resolved.
 
 ---
 
-## 🆕 New Issues Found (0)
+## 🆕 New Issues Found (5)
 
-No new issues found this round.
+### ✅ Tasks / 👥 Members
+| # | Issue | Type | Device | GitHub Issue |
+|---|-------|------|--------|--------------|
+| 1 | Task page toolbar buttons/components should be on the right | Bug | All | [#103](https://github.com/IvanTran-2001/FriendChise/issues/103) |
+| 3 | Task/member detail pages need a fixed max-width that shrinks responsively | Enhancement | All | [#105](https://github.com/IvanTran-2001/FriendChise/issues/105) |
+| 4 | Task/member edit pages need a fixed size with a responsive mobile layout | Enhancement | All | [#106](https://github.com/IvanTran-2001/FriendChise/issues/106) |
+| 5 | Member/task detail page: photo/avatar should appear at the top on mobile | Enhancement | Mobile | [#107](https://github.com/IvanTran-2001/FriendChise/issues/107) |
+
+### 📱 NavBar / Sidebar
+| # | Issue | Type | Device | GitHub Issue |
+|---|-------|------|--------|--------------|
+| 2 | Mobile sidebar should auto-close when navigating between sections | Bug | Mobile | [#104](https://github.com/IvanTran-2001/FriendChise/issues/104) |
 
 ---
 
 ## Next Steps
 
-1. Re-run full test on mobile + desktop
-2. Move to functional / regression testing
+1. Fix the 5 new issues (#103–#107)
+2. Re-run full test on mobile + desktop
+3. Move to functional / regression testing

@@ -92,14 +92,11 @@ function ApplyTemplateForm({
 
   const SUPPRESS_KEY = "apply-template-past-warn-suppress";
 
-  function getLocalTodayStr(): string {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }
-
   function isSuppressed(): boolean {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem(SUPPRESS_KEY) === getLocalTodayStr();
+    const stored = localStorage.getItem(SUPPRESS_KEY);
+    if (!stored) return false;
+    return Date.now() < Number(stored);
   }
 
   const selected = templates.find((t) => t.id === selectedId);
@@ -144,7 +141,7 @@ function ApplyTemplateForm({
 
   function handleApply() {
     if (!selectedId || !startDate || cycleRepeats < 1) return;
-    if (startDate < getLocalTodayStr() && !isSuppressed()) {
+    if (startDate < new Date().toISOString().slice(0, 10) && !isSuppressed()) {
       setShowPastWarning(true);
       return;
     }
@@ -153,7 +150,7 @@ function ApplyTemplateForm({
 
   function handleConfirmPast() {
     if (suppressToday) {
-      localStorage.setItem(SUPPRESS_KEY, getLocalTodayStr());
+      localStorage.setItem(SUPPRESS_KEY, String(Date.now() + 24 * 60 * 60 * 1000));
     }
     setShowPastWarning(false);
     doApply();
@@ -180,7 +177,7 @@ function ApplyTemplateForm({
               checked={suppressToday}
               onChange={(e) => setSuppressToday(e.target.checked)}
             />
-            Don&apos;t warn me again today
+            Don&apos;t warn me again for 24 hours
           </label>
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
