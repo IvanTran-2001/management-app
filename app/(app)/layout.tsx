@@ -10,16 +10,20 @@ import { BreadcrumbProvider } from "@/components/layout/breadcrumb-context";
  * Composes the collapsible sidebar, top navbar (server component), and the
  * purple breadcrumb header into a standard two-column layout. Page content
  * is rendered inside `<main>` via the `children` slot.
+ *
+ * `h-dvh overflow-hidden` on SidebarProvider constrains the shell to the
+ * viewport height so that `<main>` (overflow-auto) is the scroll container —
+ * not the body. This makes `sticky` positioning work inside <main>.
  */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-dvh">
       <BreadcrumbProvider>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="overflow-hidden">
           <NavBar />
           <PageHeader />
-          <main className="flex-1 min-h-0 overflow-auto p-4 sm:p-6">
+          <main className="flex-1 min-h-0 overflow-auto flex flex-col p-4 sm:p-6">
             {children}
           </main>
         </SidebarInset>
