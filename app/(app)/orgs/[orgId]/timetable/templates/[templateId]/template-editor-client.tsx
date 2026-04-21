@@ -62,7 +62,11 @@ export type ClientTemplateInstance = {
   task: { id: string; name: string; durationMin: number };
   assignees: Array<{
     id: string;
-    membership: { id: string; user: { id: string; name: string | null } };
+    membership: {
+      id: string;
+      botName: string | null;
+      user: { id: string; name: string | null } | null;
+    };
   }>;
 };
 
@@ -120,7 +124,7 @@ function EditPopup({
       if (r.ok) {
         setLocalAssignees((p) => [
           ...p,
-          { id: `opt-${effectiveAddId}`, membership },
+          { id: `opt-${effectiveAddId}`, membership: { ...membership, botName: membership.botName ?? null } },
         ]);
         router.refresh();
       }
@@ -193,7 +197,7 @@ function EditPopup({
                 key={a.membership.id}
                 className="flex items-center justify-between bg-muted/50 px-2 py-1 text-xs"
               >
-                <span>{a.membership.user.name ?? "Unknown"}</span>
+                <span>{a.membership.user?.name ?? "Unknown"}</span>
                 <button
                   onClick={() => handleRemoveAssignee(a.membership.id)}
                   className="text-muted-foreground hover:text-destructive ml-2"
@@ -212,7 +216,7 @@ function EditPopup({
               >
                 {available.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.user.name ?? "Unknown"}
+                    {m.user?.name ?? "Unknown"}
                   </option>
                 ))}
               </select>
@@ -576,7 +580,7 @@ export function TemplateEditorClient({
                           {dayInstances.map((inst, idx) => {
                             const assigneeNames =
                               inst.assignees
-                                .map((a) => a.membership.user.name ?? "Unknown")
+                                .map((a) => a.membership.user?.name ?? "Unknown")
                                 .join(", ") || "—";
                             return (
                               <tr
@@ -673,7 +677,7 @@ export function TemplateEditorClient({
             )}
             renderBlock={(inst, heightPx) => {
               const assigneeNames = inst.assignees
-                .map((a) => a.membership.user.name?.split(" ")[0] ?? "?")
+                .map((a) => (a.membership.user?.name ?? a.membership.botName ?? "Bot").split(" ")[0])
                 .join(", ");
               return (
                 <>
