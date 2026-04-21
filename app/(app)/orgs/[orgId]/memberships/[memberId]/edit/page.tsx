@@ -25,6 +25,9 @@ const EditMemberPage = async ({
 
   if (!membership) notFound();
 
+  const displayName = membership.userId === null
+    ? (membership.botName ?? "Bot")
+    : (membership.user?.name ?? "Unknown user");
   const initialRoleIds = membership.memberRoles.map(({ role }) => role.id);
 
   return (
@@ -34,13 +37,13 @@ const EditMemberPage = async ({
           href={`/orgs/${orgId}/memberships/${memberId}`}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          ← {membership.user.name ?? "Member"}
+          ← {displayName}
         </Link>
         <div className="ml-auto flex items-center gap-2">
           <MemberToolbarActions
             orgId={orgId}
-            userId={memberId}
-            memberName={membership.user.name}
+            membershipId={memberId}
+            memberName={displayName}
             status={membership.status as "ACTIVE" | "RESTRICTED"}
           />
         </div>
@@ -50,15 +53,14 @@ const EditMemberPage = async ({
         <MemberForm
           mode="edit"
           orgId={orgId}
-          userId={memberId}
-          allRoles={roles
+          membershipId={memberId}          isCurrentlyBot={membership.userId === null}          allRoles={roles
             .filter((r) => r.key !== ROLE_KEYS.OWNER)
             .map((r) => ({ id: r.id, name: r.name }))}
           initialRoleIds={initialRoleIds}
           initialWorkingDays={membership.workingDays}
-          name={membership.user.name}
-          email={membership.user.email}
-          image={membership.user.image}
+          name={displayName}
+          email={membership.user?.email ?? ""}
+          image={membership.user?.image ?? null}
         />
       </div>
     </>
