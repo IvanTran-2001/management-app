@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "prisma db seed",
+    "seed:dev": "tsx prisma/seed.ts development",
+    "seed:prod": "tsx prisma/seed.ts production",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -18,7 +20,7 @@
     "test:e2e": "playwright test"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts development"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
