@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import {
   PrismaClient,
   PermissionAction,
@@ -8,8 +11,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { ROLE_KEYS } from "@/lib/rbac";
 import { localToUTC } from "@/lib/date-utils";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+// Adapter and Prisma client will be initialized after validation
+let prisma: PrismaClient;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -2181,7 +2184,68 @@ async function seedInvites(
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
 
+function confirm(): void {
+  const dbUrl = process.env.DATABASE_URL;
+
+  // Validate DATABASE_URL is present
+  if (!dbUrl) {
+    console.error("  ❌ ERROR: DATABASE_URL is not set.");
+    console.error("  Aborted — nothing was changed.\n");
+    process.exit(1);
+  }
+
+  // Validate DATABASE_URL is a valid URL
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(dbUrl);
+  } catch (error) {
+    console.error("  ❌ ERROR: DATABASE_URL is not a valid URL.");
+    console.error("  Aborted — nothing was changed.\n");
+    process.exit(1);
+  }
+
+  const isProduction = !(
+    parsedUrl.hostname.includes("localhost") ||
+    parsedUrl.hostname.includes("dev") ||
+    parsedUrl.username.includes("dev")
+  );
+  const expected = isProduction ? "production" : "development";
+  const arg = process.argv[2];
+
+  console.log("");
+  console.log(`  Target database : ${parsedUrl.hostname}`);
+  console.log(`  Environment     : ${expected.toUpperCase()}`);
+  console.log("");
+
+  if (arg !== expected) {
+    if (isProduction) {
+      console.log("  ⚠️  WARNING: This targets PRODUCTION. Run: pnpm seed:prod");
+    } else {
+      console.log("  Run: pnpm seed:dev");
+    }
+    console.log("  Aborted — nothing was changed.\n");
+    process.exit(1);
+  }
+
+  if (isProduction) {
+    // Require explicit env var confirmation for production
+    if (process.env.CONFIRM_RESEED !== "production") {
+      console.log("  ❌ ERROR: Production reseed requires explicit confirmation.");
+      console.log("  Set CONFIRM_RESEED=production to proceed.");
+      console.log("  Aborted — nothing was changed.\n");
+      process.exit(1);
+    }
+    console.log("  ⚠️  WARNING: This will WIPE and reseed PRODUCTION.");
+    console.log("");
+  }
+
+  // Initialize Prisma client after validation
+  const adapter = new PrismaPg({ connectionString: dbUrl });
+  prisma = new PrismaClient({ adapter });
+}
+
 async function main() {
+  confirm();
   await cleanDatabase();
   const users = await seedUsers();
 
