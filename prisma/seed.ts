@@ -113,9 +113,9 @@ async function seedUsers() {
         create: { email: "alt28919@gmail.com", name: "Casey" },
       }),
       prisma.user.upsert({
-        where: { email: process.env.IVAN_EMAIL ?? "ivan@example.test" },
+        where: { email: process.env.E2E_TEST_USER_EMAIL ?? "ivan@example.test" },
         update: { name: "Riley" },
-        create: { email: process.env.IVAN_EMAIL ?? "ivan@example.test", name: "Riley" },
+        create: { email: process.env.E2E_TEST_USER_EMAIL ?? "ivan@example.test", name: "Riley" },
       }),
       prisma.user.upsert({
         where: { email: "alt28921@gmail.com" },
@@ -275,6 +275,7 @@ async function seedOrg1(users: Users) {
       { membershipId: mJordan.id, roleId: roleCounter.id },
       { membershipId: mCasey.id, roleId: roleWorker.id },
       { membershipId: mCasey.id, roleId: roleFryer.id },
+      { membershipId: mCasey.id, roleId: roleCounter.id },
       { membershipId: mRiley.id, roleId: roleWorker.id },
       { membershipId: mAlex.id, roleId: roleWorker.id },
       { membershipId: mAlex.id, roleId: roleFryer.id },

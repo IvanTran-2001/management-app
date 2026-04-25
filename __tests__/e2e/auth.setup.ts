@@ -11,15 +11,15 @@ import { test as setup, expect } from "@playwright/test";
 
 // Ivan is the primary test user — owner of Donut Shop A and Coffee House B.
 // Primary test user — owner of Walker's Doughnuts.
-// Override locally via IVAN_EMAIL if your seed uses a different identity.
-const IVAN_EMAIL = process.env.IVAN_EMAIL ?? "ivan@example.test";
+// Override locally via E2E_TEST_USER_EMAIL if your seed uses a different identity.
+const E2E_TEST_USER_EMAIL = process.env.E2E_TEST_USER_EMAIL ?? "ivan@example.test";
 
 // Must match the storageState path in playwright.config.ts
 export const AUTH_FILE = "playwright/.auth/ivan.json";
 
 setup("authenticate as Ivan", async ({ page }) => {
   const response = await page.request.get(
-    `/api/test/login?email=${encodeURIComponent(IVAN_EMAIL)}`,
+    `/api/test/login?email=${encodeURIComponent(E2E_TEST_USER_EMAIL)}`,
   );
   expect(response.ok()).toBeTruthy();
 

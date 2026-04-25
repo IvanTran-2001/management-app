@@ -1,7 +1,7 @@
 /**
  * One-off seed script for Walker's Doughnuts.
  *
- * Creates the org with the test owner email (IVAN_EMAIL env var or ivan@example.test), then upserts all tasks
+ * Creates the org with the test owner email (E2E_TEST_USER_EMAIL env var or ivan@example.test), then upserts all tasks
  * derived from the recipe cards and cleaning list.
  *
  * Safe to re-run, but destructive for tasks:
@@ -294,7 +294,7 @@ async function main() {
   const reset = process.argv.includes("--reset");
 
   console.log("→ Upserting owner user...");
-  const ownerEmail = process.env.IVAN_EMAIL ?? "ivan@example.test";
+  const ownerEmail = process.env.E2E_TEST_USER_EMAIL ?? "ivan@example.test";
   const owner = await prisma.user.upsert({
     where: { email: ownerEmail },
     update: {},
@@ -313,6 +313,11 @@ async function main() {
       console.log("  ✓ Deleted");
     } else {
       console.log(`  ℹ Org already exists (id: ${existing.id}) — replacing all tasks.`);
+      // ── Re-run path: only tasks are reconciled ──────────────────────────────────
+      // Roles, permissions, and owner membership are NOT upserted in the non-reset
+      // path. If you need to reconcile those, use `--reset` to recreate the org
+      // from scratch.
+      // ────────────────────────────────────────────────────────────────────────────
       const { count: deleted } = await prisma.task.deleteMany({ where: { orgId: existing.id } });
       console.log(`  🗑 Deleted ${deleted} existing tasks`);
       await prisma.task.createMany({
@@ -344,7 +349,7 @@ async function main() {
   console.log(`  ✓ Org created (id: ${org.id})`);
 
   console.log("→ Creating roles...");
-  const [roleOwner, roleDefault] = await Promise.all([
+  const [roleOwner, _roleDefault] = await Promise.all([
     prisma.role.create({
       data: {
         orgId: org.id,
@@ -406,8 +411,9 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
+  .catch(async (e) => {
     console.error(e);
+    await prisma.$disconnect();
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());
