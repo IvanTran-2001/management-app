@@ -4,12 +4,16 @@
  * Creates the org with alt28920@gmail.com as owner, then upserts all tasks
  * derived from the recipe cards and cleaning list.
  *
- * Safe to re-run — uses upserts for the user and skips org/task creation if
- * they already exist (unique constraints on org name per owner and task name
- * per org).
+ * Safe to re-run, but destructive for tasks:
+ *   - The owner user is upserted.
+ *   - If the org already exists, all of its tasks are deleted and recreated
+ *     from the TASKS array (org-level config is preserved).
+ *   - With `--reset`, the entire org (and all cascade-related data) is
+ *     deleted and recreated from scratch.
  *
  * Run with:
  *   npx tsx scripts/seed-walkers-doughnuts.ts
+ *   npx tsx scripts/seed-walkers-doughnuts.ts --reset
  */
 
 import dotenv from "dotenv";
