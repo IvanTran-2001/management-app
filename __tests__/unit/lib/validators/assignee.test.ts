@@ -17,9 +17,9 @@ describe("CreateAssigneeSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("accepts any non-empty string as membershipId (no cuid constraint)", () => {
-    const result = CreateAssigneeSchema.safeParse({ membershipId: "any-string-123" });
-    expect(result.success).toBe(true);
+  it("accepts any string as membershipId (no cuid/non-empty constraint)", () => {
+    expect(CreateAssigneeSchema.safeParse({ membershipId: "any-string-123" }).success).toBe(true);
+    expect(CreateAssigneeSchema.safeParse({ membershipId: "" }).success).toBe(true);
   });
 });
 
