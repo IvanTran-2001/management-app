@@ -1,7 +1,7 @@
 /**
  * One-off seed script for Walker's Doughnuts.
  *
- * Creates the org with alt28920@gmail.com as owner, then upserts all tasks
+ * Creates the org with the test owner email (IVAN_EMAIL env var or ivan@example.test), then upserts all tasks
  * derived from the recipe cards and cleaning list.
  *
  * Safe to re-run, but destructive for tasks:
@@ -294,10 +294,11 @@ async function main() {
   const reset = process.argv.includes("--reset");
 
   console.log("→ Upserting owner user...");
+  const ownerEmail = process.env.IVAN_EMAIL ?? "ivan@example.test";
   const owner = await prisma.user.upsert({
-    where: { email: "alt28920@gmail.com" },
+    where: { email: ownerEmail },
     update: {},
-    create: { email: "alt28920@gmail.com", name: "Riley" },
+    create: { email: ownerEmail, name: "Riley" },
   });
   console.log(`  ✓ User: ${owner.email} (id: ${owner.id})`);
 
