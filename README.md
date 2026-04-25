@@ -46,7 +46,7 @@ DATABASE_URL=          # PostgreSQL connection string
 Optional test configuration:
 
 ```env
-IVAN_EMAIL=            # Test user email for E2E tests and seeding (default: ivan@example.test)
+E2E_TEST_USER_EMAIL=   # Test user email for E2E tests and seeding (default: ivan@example.test)
 ```
 
 ## Database
