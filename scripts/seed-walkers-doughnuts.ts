@@ -4,10 +4,12 @@
  * Creates the org with the test owner email (E2E_TEST_USER_EMAIL env var or ivan@example.test), then upserts all tasks
  * derived from the recipe cards and cleaning list.
  *
- * Safe to re-run, but destructive for tasks:
+ * Safe to re-run:
  *   - The owner user is upserted.
- *   - If the org already exists, all of its tasks are deleted and recreated
- *     from the TASKS array (org-level config is preserved).
+ *   - If the org already exists, roles/permissions/owner-membership are
+ *     upserted and all tasks are deleted and recreated from the TASKS array
+ *     (org-level config is preserved). New PermissionAction values added
+ *     since the first seed will be picked up automatically.
  *   - With `--reset`, the entire org (and all cascade-related data) is
  *     deleted and recreated from scratch.
  *
@@ -312,12 +314,61 @@ async function main() {
       await prisma.organization.delete({ where: { id: existing.id } });
       console.log("  ✓ Deleted");
     } else {
-      console.log(`  ℹ Org already exists (id: ${existing.id}) — replacing all tasks.`);
-      // ── Re-run path: only tasks are reconciled ──────────────────────────────────
-      // Roles, permissions, and owner membership are NOT upserted in the non-reset
-      // path. If you need to reconcile those, use `--reset` to recreate the org
-      // from scratch.
-      // ────────────────────────────────────────────────────────────────────────────
+      console.log(`  ℹ Org already exists (id: ${existing.id}) — upserting roles/permissions/membership and replacing tasks.`);
+
+      console.log("→ Upserting roles...");
+      const [roleOwner] = await Promise.all([
+        prisma.role.upsert({
+          where: { orgId_key: { orgId: existing.id, key: ROLE_KEYS.OWNER } },
+          update: {},
+          create: {
+            orgId: existing.id,
+            name: "Owner",
+            key: ROLE_KEYS.OWNER,
+            color: "#ef4444",
+            isDeletable: false,
+            isDefault: false,
+          },
+        }),
+        prisma.role.upsert({
+          where: { orgId_key: { orgId: existing.id, key: ROLE_KEYS.DEFAULT_MEMBER } },
+          update: {},
+          create: {
+            orgId: existing.id,
+            name: "Default Member",
+            key: ROLE_KEYS.DEFAULT_MEMBER,
+            color: "#6b7280",
+            isDeletable: false,
+            isDefault: true,
+          },
+        }),
+      ]);
+      console.log("  ✓ Roles upserted");
+
+      console.log("→ Upserting owner permissions...");
+      await prisma.permission.createMany({
+        data: ALL_OWNER_PERMISSIONS.map((action) => ({ roleId: roleOwner.id, action })),
+        skipDuplicates: true,
+      });
+      console.log("  ✓ Permissions upserted");
+
+      console.log("→ Upserting owner membership...");
+      const membership = await prisma.membership.upsert({
+        where: { userId_orgId: { userId: owner.id, orgId: existing.id } },
+        update: {},
+        create: {
+          orgId: existing.id,
+          userId: owner.id,
+          workingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+        },
+      });
+      await prisma.memberRole.createMany({
+        data: [{ membershipId: membership.id, roleId: roleOwner.id }],
+        skipDuplicates: true,
+      });
+      console.log("  ✓ Membership + role upserted");
+
+      console.log("→ Replacing tasks...");
       const { count: deleted } = await prisma.task.deleteMany({ where: { orgId: existing.id } });
       console.log(`  🗑 Deleted ${deleted} existing tasks`);
       await prisma.task.createMany({
