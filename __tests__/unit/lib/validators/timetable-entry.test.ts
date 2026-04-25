@@ -105,7 +105,7 @@ describe("createTimetableEntrySchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects endTimeMin of 0 is valid (midnight)", () => {
+  it("accepts endTimeMin of 0 (midnight)", () => {
     const result = createTimetableEntrySchema.safeParse({
       ...validInput,
       endTimeMin: 0,
