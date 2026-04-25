@@ -287,7 +287,7 @@ describe("memberToBot", () => {
 // ─── updateBot ────────────────────────────────────────────────────────────────
 
 describe("updateBot", () => {
-  const updateData = { botName: "Updated Bot", workingDays: ["TUE"], roleIds: ["role-1"] };
+  const updateData = { botName: "Updated Bot", workingDays: ["tue"], roleIds: ["role-1"] };
 
   beforeEach(() => {
     vi.mocked(prisma.membership.findUnique).mockResolvedValue({
@@ -307,7 +307,7 @@ describe("updateBot", () => {
     expect(result).toEqual({ ok: true, data: null });
     expect(prisma.membership.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ botName: "Updated Bot", workingDays: ["TUE"] }),
+        data: expect.objectContaining({ botName: "Updated Bot", workingDays: ["tue"] }),
       }),
     );
   });
