@@ -541,10 +541,11 @@ Sentry config files:
 | `instrumentation.ts`      | Next.js instrumentation hook (wires server/edge configs) |
 | `instrumentation-client.ts` | Client-side init (tracing, replay, logs)     |
 
-Required env var (Vercel only — not needed in CI):
+Required env var for source map uploads:
 
 ```env
-SENTRY_AUTH_TOKEN=   # Sentry auth token for source map uploads at build time
+SENTRY_AUTH_TOKEN=   # Required whenever source maps are uploaded at build time (e.g., in CI/CD or on hosting platforms such as Vercel)
+                     # Source map upload is performed by withSentryConfig during build
 ```
 
 ## Status
