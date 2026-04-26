@@ -1,8 +1,18 @@
-# Chore / Practice Management System
+# FriendChise
 
-A role-based chore/practice management system for organizations to manage recurring tasks, schedules, and team members. Supports franchise hierarchies where a parent org can spawn and manage child organisations.
+[![CI](https://github.com/IvanTran-2001/FriendChise/actions/workflows/ci.yml/badge.svg)](https://github.com/IvanTran-2001/FriendChise/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black?logo=next.js)](https://nextjs.org)
+[![Deploy](https://img.shields.io/badge/deploy-friendchise.app-brightgreen)](https://friendchise.app)
+
+A role-based task and schedule management platform for franchise organisations. Parent orgs can spawn and manage franchisee orgs, each with their own members, roles, tasks, and timetables.
 
 Production deployment: **[friendchise.app](https://friendchise.app)**
+
+## Screenshots
+
+> _TODO: add screenshots / screen recording_
+<!-- Replace this comment with: ![Timetable view](docs/screenshots/timetable.png) etc. -->
 
 ## Tech Stack
 
