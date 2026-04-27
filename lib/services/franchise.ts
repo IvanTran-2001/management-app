@@ -307,7 +307,7 @@ export async function createFranchiseToken(
     }
   });
 
-  Sentry.logger.info("Franchise token created", { orgId, invitedById: inviterId, email });
+  Sentry.logger.info("Franchise token created", { orgId, invitedById: inviterId, userId: user.id });
   return { ok: true, data: undefined };
 }
 
@@ -449,6 +449,6 @@ export async function changeFranchiseeOwner(
     };
   }
 
-  Sentry.logger.info("Franchisee owner changed", { parentOrgId: orgId, childOrgId, newOwnerEmail });
+  Sentry.logger.info("Franchisee owner changed", { parentOrgId: orgId, childOrgId, newOwnerId: newOwner.id });
   return { ok: true, data: undefined };
 }
