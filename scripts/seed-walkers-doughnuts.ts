@@ -400,7 +400,7 @@ async function main() {
   console.log(`  ✓ Org created (id: ${org.id})`);
 
   console.log("→ Creating roles...");
-  const [roleOwner, _roleDefault] = await Promise.all([
+  const [roleOwner] = await Promise.all([
     prisma.role.create({
       data: {
         orgId: org.id,
