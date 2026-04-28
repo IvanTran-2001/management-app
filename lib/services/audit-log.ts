@@ -28,7 +28,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/observability";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 export interface AuditLogInput {
   orgId: string;
@@ -45,10 +45,19 @@ export interface AuditLogInput {
 /**
  * Writes an audit log entry. Never throws — if the write fails, the error is
  * captured via Sentry so the caller's mutation always succeeds.
+ *
+ * @param params - Audit log entry data
+ * @param client - Optional Prisma client or transaction handle. When provided,
+ *                 the audit write is part of the same transaction. When omitted,
+ *                 uses the root prisma client.
  */
-export async function recordAudit(params: AuditLogInput): Promise<void> {
+export async function recordAudit(
+  params: AuditLogInput,
+  client?: PrismaClient | Prisma.TransactionClient
+): Promise<void> {
+  const db = client ?? prisma;
   try {
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         orgId: params.orgId,
         actorId: params.actorId ?? null,

@@ -182,6 +182,7 @@ model Membership {
   memberRoles         MemberRole[]
   taskAssignments     TimetableEntryAssignee[]
   templateAssignments TemplateEntryAssignee[]
+  auditLogs           AuditLog[]
 
   joinedAt      DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -540,7 +541,8 @@ model AuditLog {
   metadata   Json?    // freeform extra context (IP, request ID, etc.)
   createdAt  DateTime @default(now())
 
-  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor Membership?  @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([orgId, createdAt])
   @@index([orgId, targetType, targetId])
