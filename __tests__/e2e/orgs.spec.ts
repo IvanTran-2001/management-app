@@ -63,8 +63,9 @@ test("delete org → redirected to /", async ({ page }) => {
   await expect(deleteButton).toBeEnabled();
   await deleteButton.click();
 
-  // Should redirect back to the app root after deletion
-  await expect(page).toHaveURL("/");
+  // Should redirect back to the app root after deletion, which itself
+  // redirects authenticated users to /orgs/new (no orgs left)
+  await expect(page).toHaveURL("/orgs/new");
 });
 
 test("create org without a name → stays on page, does not submit", async ({
