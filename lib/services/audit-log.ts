@@ -42,8 +42,8 @@ import { z } from "zod";
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 export const auditLogInputSchema = z.object({
-  orgId: z.string().cuid(),
-  actorId: z.string().cuid().nullish(),
+  orgId: z.string().nonempty(),
+  actorId: z.string().nonempty().nullish(),
   action: z.string().min(1),
   entityType: z.string().min(1),
   entityId: z.string().min(1),
@@ -62,9 +62,9 @@ export type AuditLogInput = z.infer<typeof auditLogInputSchema>;
  * transaction, pass `prisma` and chain `.catch()` so a log write failure never
  * surfaces as a user-facing error.
  */
-export function logAudit(db: Tx, entry: AuditLogInput) {
-  const parsed = auditLogInputSchema.parse(entry);
-  return db.auditLog.create({
+export async function logAudit(db: Tx, entry: AuditLogInput) {
+  const parsed = await auditLogInputSchema.parseAsync(entry);
+  return await db.auditLog.create({
     data: {
       orgId: parsed.orgId,
       actorId: parsed.actorId ?? null,

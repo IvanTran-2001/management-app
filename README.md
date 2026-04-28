@@ -625,4 +625,6 @@ SENTRY_AUTH_TOKEN=   # Required whenever source maps are uploaded at build time 
 
 Work in progress. Fully implemented: service layer, REST API, auth, member management (list, view, edit, restrict, delete), task management (list, view, create, edit with color), timetable view (calendar + simple, task links), timetable templates (create, rename, duplicate, delete, calendar/simple editor, cycle-length controls, apply to timetable), org settings, role management (list, create, edit, delete, task eligibility, color), franchise management, required colors on tasks and roles, async breadcrumbs with name resolution, fixed-toolbar scroll containment on members and tasks pages, audit log (DB table + Zod-validated service layer, all significant mutations instrumented — UI pending).
 
-Not yet started: schedule generation (automatic cycle-based rotation), worker "Today" checklist, completion stats, timetable/notification settings pages, real-time notification refresh, acceptance notification back to inviter, audit log UI (activity feed page).
+Not yet started: schedule generation (automatic cycle-based rotation), worker "Today" checklist, completion stats, timetable/notification settings pages, real-time notification refresh, audit log UI (activity feed page).
+
+Implemented: acceptance notification back to inviter (see `notifyInviteAccepted` in `lib/services/invites.ts`).
