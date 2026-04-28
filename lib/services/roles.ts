@@ -9,7 +9,7 @@ import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { PermissionAction } from "@prisma/client";
 import { ROLE_KEYS } from "@/lib/rbac";
-import { logAudit } from "@/lib/services/audit-log";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { RoleFormInput } from "@/lib/validators/role";
 import type { ServiceResult } from "./types";
 
@@ -68,14 +68,14 @@ export async function deleteRole(
 
   await prisma.role.delete({ where: { id: roleId } });
   log.info("Role deleted", { orgId, roleId });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "role.delete",
-    entityType: "Role",
-    entityId: roleId,
+    targetType: "Role",
+    targetId: roleId,
     before: { name: role.name, color: role.color, permissions: role.permissions.map((p) => p.action) },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return { ok: true, data: null };
 }
 
@@ -168,12 +168,12 @@ export async function createRole(
       select: roleSelect,
     });
 
-    await logAudit(tx, {
+    recordAudit({
       orgId,
       actorId: actorId ?? null,
       action: "role.create",
-      entityType: "Role",
-      entityId: created.id,
+      targetType: "Role",
+      targetId: created.id,
       after: { name: finalRole.name, color: finalRole.color, permissions: finalRole.permissions.map((p) => p.action) },
     });
 
@@ -262,12 +262,12 @@ export async function updateRole(
       select: roleSelect,
     });
 
-    await logAudit(tx, {
+    recordAudit({
       orgId,
       actorId: actorId ?? null,
       action: "role.update",
-      entityType: "Role",
-      entityId: roleId,
+      targetType: "Role",
+      targetId: roleId,
       before: existing ? { name: existing.name, color: existing.color, permissions: existing.permissions.map((p) => p.action) } : null,
       after: { name: finalRole.name, color: finalRole.color, permissions: finalRole.permissions.map((p) => p.action) },
     });

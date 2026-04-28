@@ -1,6 +1,6 @@
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
-import { logAudit } from "@/lib/services/audit-log";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { ServiceResult } from "./types";
 import type { CreateTaskInput, UpdateTaskInput } from "@/lib/validators/task";
 
@@ -23,14 +23,14 @@ export async function createTask(orgId: string, data: CreateTaskInput, actorId?:
     },
   });
   log.info("Task created", { orgId, taskId: task.id });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "task.create",
-    entityType: "Task",
-    entityId: task.id,
+    targetType: "Task",
+    targetId: task.id,
     after: { name: task.name, color: task.color, description: task.description, durationMin: task.durationMin },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return task;
 }
 
@@ -52,14 +52,14 @@ export async function deleteTask(
     return { ok: false, error: "Task not found", code: "NOT_FOUND" };
   log.info("Task deleted", { orgId, taskId: id });
   if (existing) {
-    logAudit(prisma, {
+    recordAudit({
       orgId,
       actorId: actorId ?? null,
       action: "task.delete",
-      entityType: "Task",
-      entityId: id,
+      targetType: "Task",
+      targetId: id,
       before: { name: existing.name, color: existing.color, description: existing.description, durationMin: existing.durationMin },
-    }).catch((err) => log.warn("Audit log failed", { err }));
+    });
   }
   return { ok: true, data: null };
 }
@@ -124,15 +124,15 @@ export async function updateTask(
   if (count === 0)
     return { ok: false, error: "Task not found", code: "NOT_FOUND" };
   log.info("Task updated", { orgId, taskId });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "task.update",
-    entityType: "Task",
-    entityId: taskId,
+    targetType: "Task",
+    targetId: taskId,
     before: existing as import("@prisma/client").Prisma.InputJsonObject | null,
     after: { name: data.title, color: data.color, description: data.description ?? null, durationMin: data.durationMin },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return { ok: true, data: null };
 }
 

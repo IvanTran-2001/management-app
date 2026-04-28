@@ -8,7 +8,7 @@ import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { PermissionAction } from "@prisma/client";
 import { ROLE_KEYS } from "@/lib/rbac";
-import { logAudit } from "@/lib/services/audit-log";
+import { recordAudit } from "@/lib/services/audit-log";
 import type {
   CreateOrgInput,
   JoinFranchiseInput,
@@ -117,12 +117,12 @@ export async function createOrg(userId: string, data: CreateOrgInput) {
       userId,
     );
 
-    await logAudit(tx, {
+    recordAudit({
       orgId: org.id,
       actorId: userId,
       action: "org.create",
-      entityType: "Organization",
-      entityId: org.id,
+      targetType: "Organization",
+      targetId: org.id,
       after: { name: org.name, timezone: org.timezone, address: org.address },
     });
 
@@ -236,12 +236,12 @@ export async function joinFranchise(
       data: { status: "ACCEPTED", acceptedAt: new Date() },
     });
 
-    await logAudit(tx, {
+    recordAudit({
       orgId: org.id,
       actorId: userId,
       action: "org.join_franchise",
-      entityType: "Organization",
-      entityId: org.id,
+      targetType: "Organization",
+      targetId: org.id,
       after: { name: org.name, parentId: org.parentId, timezone: org.timezone },
     });
 
@@ -275,15 +275,15 @@ export async function updateOrgSettings(
       closeTimeMin: data.closeTimeMin ?? null,
     },
   });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "org.update",
-    entityType: "Organization",
-    entityId: orgId,
+    targetType: "Organization",
+    targetId: orgId,
     before: before as import("@prisma/client").Prisma.InputJsonObject | null,
     after: { timezone: data.timezone, address: data.address ?? null, operatingDays: data.operatingDays ?? [], openTimeMin: data.openTimeMin ?? null, closeTimeMin: data.closeTimeMin ?? null },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return updated;
 }
 
@@ -355,12 +355,12 @@ export async function transferOrgOwnership(
       data: { ownerId: newOwnerId },
     });
 
-    await logAudit(tx, {
+    recordAudit({
       orgId,
       actorId: currentOwnerId,
       action: "org.transfer_ownership",
-      entityType: "Organization",
-      entityId: orgId,
+      targetType: "Organization",
+      targetId: orgId,
       before: { ownerId: currentOwnerId },
       after: { ownerId: newOwnerId },
     });

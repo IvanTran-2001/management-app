@@ -16,7 +16,7 @@
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { Prisma, EntryStatus } from "@prisma/client";
-import { logAudit } from "@/lib/services/audit-log";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { ServiceResult } from "./types";
 import type { CreateTimetableEntryInput } from "@/lib/validators/timetable-entry";
 import {
@@ -87,14 +87,14 @@ export async function createTimetableEntryFromInput(
       entryId: entry.id,
       taskId: data.taskId,
     });
-    logAudit(prisma, {
+    recordAudit({
       orgId,
       actorId: actorId ?? null,
       action: "entry.create",
-      entityType: "TimetableEntry",
-      entityId: entry.id,
+      targetType: "TimetableEntry",
+      targetId: entry.id,
       after: { taskId: task.id, taskName: task.name, date: data.date, startTimeMin: data.startTimeMin, endTimeMin },
-    }).catch((err) => log.warn("Audit log failed", { err }));
+    });
     return { ok: true, data: entry };
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
@@ -348,14 +348,14 @@ export async function createTimetableEntry(
     entryId: entry.id,
     taskId,
   });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "entry.create",
-    entityType: "TimetableEntry",
-    entityId: entry.id,
+    targetType: "TimetableEntry",
+    targetId: entry.id,
     after: { taskId, taskName: task.name, dateStr, startTimeMin },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return { ok: true, data: entry };
 }
 
@@ -434,13 +434,13 @@ export async function deleteTimetableEntry(
 
   await prisma.timetableEntry.delete({ where: { id: entryId } });
   log.info("Timetable entry deleted", { orgId, entryId });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "entry.delete",
-    entityType: "TimetableEntry",
-    entityId: entryId,
-  }).catch((err) => log.warn("Audit log failed", { err }));
+    targetType: "TimetableEntry",
+    targetId: entryId,
+  });
   return { ok: true, data: null };
 }
 

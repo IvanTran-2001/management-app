@@ -1,7 +1,7 @@
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { Prisma, InviteType } from "@prisma/client";
-import { logAudit } from "@/lib/services/audit-log";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { CreateMembershipInput } from "@/lib/validators/membership";
 import type { ServiceResult } from "./types";
 import { ROLE_KEYS } from "@/lib/rbac";
@@ -126,12 +126,12 @@ export async function deleteMembership(
       data: { status: "DECLINED", declinedAt: new Date() },
     });
     await tx.membership.delete({ where: { id: membershipId } });
-    await logAudit(tx, {
+    recordAudit({
       orgId,
       actorId: actorId ?? null,
       action: "membership.remove",
-      entityType: "Membership",
-      entityId: membershipId,
+      targetType: "Membership",
+      targetId: membershipId,
       before: { userId: membership.userId },
     });
   });

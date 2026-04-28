@@ -108,7 +108,6 @@ model User {
   sentInvites               Invite[]       @relation("SentInvites")
   receivedInvites           Invite[]       @relation("ReceivedInvites")
   receivedNotifications     Notification[] @relation("ReceivedNotifications")
-  auditLogs                 AuditLog[]
 
   accounts      Account[]
   sessions      Session[]
@@ -530,25 +529,20 @@ model Notification {
 
 model AuditLog {
   id         String   @id @default(cuid())
-
-  orgId      String
-  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-
-  /// null for system-initiated actions (seeds, scheduled jobs)
-  actorId    String?
-  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
-
-  /// Dot-namespaced verb: "org.create", "role.delete", "task.update", etc.
-  action     String
-
-  entityType String   // "Organization", "Role", "Task", "Template", "Membership"
-  entityId   String   // primary key of the affected record
-
-  before     Json?    // snapshot before the change (null for creates)
-  after      Json?    // snapshot after the change (null for deletes)
-
+  orgId      String   // tenant scope — always indexed
+  actorId    String?  // membershipId of who did it (null for system actions)
+  actorEmail String?  // snapshot — survives membership deletion
+  action     String   // e.g. "task.create", "membership.delete", "role.update"
+  targetType String   // e.g. "Task", "Membership", "Role"
+  targetId   String   // ID of the affected entity
+  before     Json?    // snapshot of entity before mutation (null for creates)
+  after      Json?    // snapshot of entity after mutation (null for deletes)
+  metadata   Json?    // freeform extra context (IP, request ID, etc.)
   createdAt  DateTime @default(now())
 
-  @@index([orgId, createdAt(sort: Desc)])
-  @@index([actorId])
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@index([orgId, targetType, targetId])
+  @@index([orgId, actorId])
 }

@@ -1,7 +1,7 @@
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { Prisma, InviteType } from "@prisma/client";
-import { logAudit } from "@/lib/services/audit-log";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { ServiceResult } from "./types";
 import type {
   MemberToBotInput,
@@ -91,14 +91,14 @@ export async function createBot(
     membershipId: bot.id,
     botName: data.botName,
   });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "bot.create",
-    entityType: "Membership",
-    entityId: bot.id,
+    targetType: "Membership",
+    targetId: bot.id,
     after: { botName: data.botName, roleIds: data.roleIds, workingDays: data.workingDays ?? [] },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return { ok: true, data: bot };
 }
 
@@ -146,14 +146,14 @@ export async function deleteBot(
     prisma.membership.delete({ where: { id: membershipId } }),
   ]);
   log.info("Bot deleted", { orgId, membershipId });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "bot.delete",
-    entityType: "Membership",
-    entityId: membershipId,
+    targetType: "Membership",
+    targetId: membershipId,
     before: { botName: membership.botName },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return { ok: true, data: null };
 }
 

@@ -14,7 +14,7 @@ import { InviteType } from "@prisma/client";
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { ROLE_KEYS } from "@/lib/rbac";
-import { logAudit } from "@/lib/services/audit-log";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { ServiceResult } from "./types";
 import { normalizeEmail } from "@/lib/utils";
 
@@ -315,14 +315,14 @@ export async function createFranchiseToken(
     invitedById: inviterId,
     userId: user.id,
   });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "invite.send",
-    entityType: "FranchiseToken",
-    entityId: user.id,
+    targetType: "FranchiseToken",
+    targetId: user.id,
     after: { recipientEmail: trimmed, recipientId: user.id, type: "franchise" },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return { ok: true, data: undefined };
 }
 
@@ -393,14 +393,14 @@ export async function removeFranchisee(
     return { ok: false, error: "Franchisee not found", code: "NOT_FOUND" };
 
   log.info("Franchisee removed", { parentOrgId: orgId, childOrgId });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "franchisee.remove",
-    entityType: "Organization",
-    entityId: childOrgId,
+    targetType: "Organization",
+    targetId: childOrgId,
     before: { childOrgId },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return { ok: true, data: undefined };
 }
 

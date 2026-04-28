@@ -5,7 +5,7 @@
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { logAudit } from "@/lib/services/audit-log";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { ServiceResult } from "./types";
 import {
   localMidnightUTC,
@@ -77,14 +77,14 @@ export async function createTemplate(
     templateId: template.id,
     name,
   });
-  logAudit(prisma, {
+  recordAudit({
     orgId,
     actorId: actorId ?? null,
     action: "template.create",
-    entityType: "Template",
-    entityId: template.id,
+    targetType: "Template",
+    targetId: template.id,
     after: { name, cycleLengthDays },
-  }).catch((err) => log.warn("Audit log failed", { err }));
+  });
   return { ok: true, data: template };
 }
 
@@ -537,15 +537,15 @@ export async function renameTemplate(
       return { ok: false, error: "Template not found", code: "NOT_FOUND" };
 
     log.info("Template renamed", { orgId, templateId });
-    logAudit(prisma, {
+    recordAudit({
       orgId,
       actorId: actorId ?? null,
       action: "template.update",
-      entityType: "Template",
-      entityId: templateId,
+      targetType: "Template",
+      targetId: templateId,
       before: existing ? { name: existing.name } : null,
       after: { name: trimmed },
-    }).catch((err) => log.warn("Audit log failed", { err }));
+    });
     return { ok: true, data: null };
   } catch (error) {
     if (
@@ -621,14 +621,14 @@ export async function duplicateTemplate(
         sourceTemplateId: templateId,
         newTemplateId: copy.id,
       });
-      logAudit(prisma, {
+      recordAudit({
         orgId,
         actorId: actorId ?? null,
         action: "template.create",
-        entityType: "Template",
-        entityId: copy.id,
+        targetType: "Template",
+        targetId: copy.id,
         after: { name: candidateName, sourceTemplateId: templateId },
-      }).catch((err) => log.warn("Audit log failed", { err }));
+      });
       return { ok: true, data: { id: copy.id } };
     } catch (error) {
       if (
@@ -677,14 +677,14 @@ export async function deleteTemplate(
 
   log.info("Template deleted", { orgId, templateId });
   if (existing) {
-    logAudit(prisma, {
+    recordAudit({
       orgId,
       actorId: actorId ?? null,
       action: "template.delete",
-      entityType: "Template",
-      entityId: templateId,
+      targetType: "Template",
+      targetId: templateId,
       before: { name: existing.name, cycleLengthDays: existing.cycleLengthDays },
-    }).catch((err) => log.warn("Audit log failed", { err }));
+    });
   }
   return { ok: true, data: null };
 }
