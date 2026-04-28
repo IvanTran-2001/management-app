@@ -165,7 +165,7 @@ describe("deleteTaskAction", () => {
 
     await deleteTaskAction("org-1", "task-xyz");
 
-    expect(deleteTask).toHaveBeenCalledWith("org-1", "task-xyz");
+    expect(deleteTask).toHaveBeenCalledWith("org-1", "task-xyz", "u-1");
   });
 });
 

@@ -96,6 +96,7 @@ describe("createBotAction", () => {
     expect(createBotService).toHaveBeenCalledWith(
       "org-1",
       expect.objectContaining({ roleIds: ["role-default"] }),
+      "u-1",
     );
   });
 
@@ -168,7 +169,7 @@ describe("deleteBotAction", () => {
     const result = await deleteBotAction("org-1", "mem-bot");
 
     expect(result).toEqual({ ok: true });
-    expect(deleteBotService).toHaveBeenCalledWith("org-1", "mem-bot");
+    expect(deleteBotService).toHaveBeenCalledWith("org-1", "mem-bot", "u-1");
     expect(revalidatePath).toHaveBeenCalled();
   });
 

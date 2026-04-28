@@ -85,6 +85,7 @@ describe("createTimetableEntryAction", () => {
       "task-1",
       "2025-06-01",
       480,
+      "u-1",
     );
     expect(revalidatePath).toHaveBeenCalledWith("/orgs/org-1/timetable");
   });
@@ -221,6 +222,7 @@ describe("deleteTimetableEntryAction", () => {
     expect(deleteTimetableEntryService).toHaveBeenCalledWith(
       "org-1",
       "entry-1",
+      "u-1",
     );
     expect(revalidatePath).toHaveBeenCalled();
   });
