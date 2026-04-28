@@ -46,7 +46,7 @@ export async function POST(
     );
   }
 
-  const result = await createMembership(orgId, parsed.data);
+  const result = await createMembership(orgId, parsed.data, authz.userId);
   if (!result.ok) {
     const status = result.code === "CONFLICT" ? 409 : 400;
     return NextResponse.json({ error: result.error }, { status });
@@ -75,7 +75,7 @@ export async function DELETE(
     );
   }
 
-  const result = await deleteMembership(orgId, parsed.data.membershipId);
+  const result = await deleteMembership(orgId, parsed.data.membershipId, authz.userId);
   if (!result.ok) {
     const status = result.code === "NOT_FOUND" ? 404 : 400;
     return NextResponse.json({ error: result.error }, { status });

@@ -60,7 +60,7 @@ describe("deleteRoleAction", () => {
     const result = await deleteRoleAction("org-1", "role-1");
 
     expect(result).toEqual({ ok: true });
-    expect(deleteRoleService).toHaveBeenCalledWith("org-1", "role-1");
+    expect(deleteRoleService).toHaveBeenCalledWith("org-1", "role-1", "u-1");
     expect(revalidatePath).toHaveBeenCalled();
   });
 
@@ -130,6 +130,7 @@ describe("createRoleAction", () => {
     expect(createRoleService).toHaveBeenCalledWith(
       "org-1",
       expect.objectContaining({ name: "Manager" }),
+      "u-1",
     );
     expect(revalidatePath).toHaveBeenCalled();
   });
@@ -188,6 +189,7 @@ describe("updateRoleAction", () => {
       "org-1",
       "role-1",
       expect.objectContaining({ name: "Manager" }),
+      "u-1",
     );
     expect(revalidatePath).toHaveBeenCalled();
   });

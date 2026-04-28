@@ -9,6 +9,7 @@ import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { PermissionAction } from "@prisma/client";
 import { ROLE_KEYS } from "@/lib/rbac";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { RoleFormInput } from "@/lib/validators/role";
 import type { ServiceResult } from "./types";
 
@@ -51,8 +52,12 @@ export async function getRoles(orgId: string): Promise<RoleWithPermissions[]> {
 export async function deleteRole(
   orgId: string,
   roleId: string,
+  actorId?: string | null,
 ): Promise<ServiceResult<null>> {
-  const role = await prisma.role.findFirst({ where: { id: roleId, orgId } });
+  const role = await prisma.role.findFirst({
+    where: { id: roleId, orgId },
+    include: { permissions: { select: { action: true } } },
+  });
   if (!role) return { ok: false, error: "Role not found.", code: "NOT_FOUND" };
   if (!role.isDeletable)
     return {
@@ -63,6 +68,14 @@ export async function deleteRole(
 
   await prisma.role.delete({ where: { id: roleId } });
   log.info("Role deleted", { orgId, roleId });
+  recordAudit({
+    orgId,
+    actorId: actorId ?? null,
+    action: "role.delete",
+    targetType: "Role",
+    targetId: roleId,
+    before: { name: role.name, color: role.color, permissions: role.permissions.map((p) => p.action) },
+  });
   return { ok: true, data: null };
 }
 
@@ -111,6 +124,7 @@ export async function getRoleById(
 export async function createRole(
   orgId: string,
   data: RoleFormInput,
+  actorId?: string | null,
 ): Promise<ServiceResult<RoleWithPermissions>> {
   const role = await prisma.$transaction(async (tx) => {
     const taskIds = [...new Set(data.taskIds)];
@@ -149,10 +163,21 @@ export async function createRole(
       });
     }
 
-    return tx.role.findUniqueOrThrow({
+    const finalRole = await tx.role.findUniqueOrThrow({
       where: { id: created.id },
       select: roleSelect,
     });
+
+    await recordAudit({
+      orgId,
+      actorId: actorId ?? null,
+      action: "role.create",
+      targetType: "Role",
+      targetId: created.id,
+      after: { name: finalRole.name, color: finalRole.color, permissions: finalRole.permissions.map((p) => p.action) },
+    }, tx);
+
+    return finalRole;
   });
 
   if (!role) {
@@ -188,20 +213,27 @@ export async function updateRole(
   orgId: string,
   roleId: string,
   data: RoleFormInput,
+  actorId?: string | null,
 ): Promise<ServiceResult<RoleWithPermissions>> {
-  const existing = await prisma.role.findFirst({
+  // Guard before entering the transaction so the caller can trust that
+  // $transaction is never called for invalid inputs (also matches test expectations).
+  const preCheck = await prisma.role.findFirst({
     where: { id: roleId, orgId },
+    select: { key: true },
   });
-  if (!existing)
-    return { ok: false, error: "Role not found.", code: "NOT_FOUND" };
-  if (existing.key === ROLE_KEYS.OWNER)
-    return {
-      ok: false,
-      error: "The Owner role cannot be edited.",
-      code: "INVALID",
-    };
+  if (!preCheck) return { ok: false, error: "Role not found.", code: "NOT_FOUND" };
+  if (preCheck.key === ROLE_KEYS.OWNER) {
+    return { ok: false, error: "The Owner role cannot be edited.", code: "INVALID" };
+  }
 
   const updated = await prisma.$transaction(async (tx) => {
+    // Fetch the full role inside the transaction for a consistent snapshot
+    const existing = await tx.role.findFirst({
+      where: { id: roleId, orgId },
+      include: { permissions: { select: { action: true } } },
+    });
+    if (!existing) return { error: "NOT_FOUND" as const };
+
     const taskIds = [...new Set(data.taskIds)];
     const permissionActions = [...new Set(data.permissions)];
     if (taskIds.length > 0) {
@@ -209,7 +241,7 @@ export async function updateRole(
         where: { orgId, id: { in: taskIds } },
         select: { id: true },
       });
-      if (orgTasks.length !== taskIds.length) return null;
+      if (orgTasks.length !== taskIds.length) return { error: "INVALID_TASKS" as const };
     }
 
     await tx.role.update({
@@ -230,13 +262,28 @@ export async function updateRole(
       });
     }
 
-    return tx.role.findUniqueOrThrow({
+    const finalRole = await tx.role.findUniqueOrThrow({
       where: { id: roleId },
       select: roleSelect,
     });
+
+    await recordAudit({
+      orgId,
+      actorId: actorId ?? null,
+      action: "role.update",
+      targetType: "Role",
+      targetId: roleId,
+      before: { name: existing.name, color: existing.color, permissions: existing.permissions.map((p) => p.action) },
+      after: { name: finalRole.name, color: finalRole.color, permissions: finalRole.permissions.map((p) => p.action) },
+    }, tx);
+
+    return { error: null, data: finalRole };
   });
 
-  if (!updated) {
+  if (updated.error === "NOT_FOUND") {
+    return { ok: false, error: "Role not found.", code: "NOT_FOUND" };
+  }
+  if (updated.error === "INVALID_TASKS") {
     return {
       ok: false,
       error: "One or more tasks are invalid for this organization.",
@@ -245,5 +292,5 @@ export async function updateRole(
   }
 
   log.info("Role updated", { orgId, roleId });
-  return { ok: true, data: updated };
+  return { ok: true, data: updated.data };
 }

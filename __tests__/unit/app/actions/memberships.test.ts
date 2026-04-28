@@ -192,7 +192,7 @@ describe("deleteMembershipAction", () => {
     const result = await deleteMembershipAction("org-1", "mem-1");
 
     expect(result).toEqual({ ok: true });
-    expect(deleteMembershipService).toHaveBeenCalledWith("org-1", "mem-1");
+    expect(deleteMembershipService).toHaveBeenCalledWith("org-1", "mem-1", "u-1");
     expect(revalidatePath).toHaveBeenCalled();
   });
 
@@ -237,6 +237,7 @@ describe("updateMembershipAction", () => {
       "org-1",
       "mem-1",
       updateData,
+      "u-1",
     );
     expect(revalidatePath).toHaveBeenCalledTimes(2);
   });
@@ -286,6 +287,7 @@ describe("setMemberStatusAction", () => {
       "org-1",
       "mem-1",
       "RESTRICTED",
+      "u-1",
     );
     expect(revalidatePath).toHaveBeenCalledTimes(2);
   });

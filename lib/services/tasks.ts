@@ -1,5 +1,6 @@
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { ServiceResult } from "./types";
 import type { CreateTaskInput, UpdateTaskInput } from "@/lib/validators/task";
 
@@ -7,7 +8,7 @@ import type { CreateTaskInput, UpdateTaskInput } from "@/lib/validators/task";
  * Creates a new task for the given org using validated input.
  * Optional fields are null-coalesced so callers never need to handle `undefined`.
  */
-export async function createTask(orgId: string, data: CreateTaskInput) {
+export async function createTask(orgId: string, data: CreateTaskInput, actorId?: string | null) {
   const task = await prisma.task.create({
     data: {
       orgId,
@@ -22,6 +23,14 @@ export async function createTask(orgId: string, data: CreateTaskInput) {
     },
   });
   log.info("Task created", { orgId, taskId: task.id });
+  recordAudit({
+    orgId,
+    actorId: actorId ?? null,
+    action: "task.create",
+    targetType: "Task",
+    targetId: task.id,
+    after: { name: task.name, color: task.color, description: task.description, durationMin: task.durationMin },
+  });
   return task;
 }
 
@@ -32,11 +41,26 @@ export async function createTask(orgId: string, data: CreateTaskInput) {
 export async function deleteTask(
   orgId: string,
   id: string,
+  actorId?: string | null,
 ): Promise<ServiceResult<null>> {
+  const existing = await prisma.task.findFirst({
+    where: { id, orgId },
+    select: { name: true, color: true, description: true, durationMin: true },
+  });
   const { count } = await prisma.task.deleteMany({ where: { id, orgId } });
   if (count === 0)
     return { ok: false, error: "Task not found", code: "NOT_FOUND" };
   log.info("Task deleted", { orgId, taskId: id });
+  if (existing) {
+    recordAudit({
+      orgId,
+      actorId: actorId ?? null,
+      action: "task.delete",
+      targetType: "Task",
+      targetId: id,
+      before: { name: existing.name, color: existing.color, description: existing.description, durationMin: existing.durationMin },
+    });
+  }
   return { ok: true, data: null };
 }
 
@@ -78,7 +102,12 @@ export async function updateTask(
   orgId: string,
   taskId: string,
   data: UpdateTaskInput,
+  actorId?: string | null,
 ): Promise<ServiceResult<null>> {
+  const existing = await prisma.task.findFirst({
+    where: { id: taskId, orgId },
+    select: { name: true, color: true, description: true, durationMin: true },
+  });
   const { count } = await prisma.task.updateMany({
     where: { id: taskId, orgId },
     data: {
@@ -95,6 +124,15 @@ export async function updateTask(
   if (count === 0)
     return { ok: false, error: "Task not found", code: "NOT_FOUND" };
   log.info("Task updated", { orgId, taskId });
+  recordAudit({
+    orgId,
+    actorId: actorId ?? null,
+    action: "task.update",
+    targetType: "Task",
+    targetId: taskId,
+    before: existing as import("@prisma/client").Prisma.InputJsonObject | null,
+    after: { name: data.title, color: data.color, description: data.description ?? null, durationMin: data.durationMin },
+  });
   return { ok: true, data: null };
 }
 

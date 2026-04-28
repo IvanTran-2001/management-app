@@ -108,6 +108,7 @@ model User {
   sentInvites               Invite[]       @relation("SentInvites")
   receivedInvites           Invite[]       @relation("ReceivedInvites")
   receivedNotifications     Notification[] @relation("ReceivedNotifications")
+  auditLogs                 AuditLog[]
 
   accounts      Account[]
   sessions      Session[]
@@ -150,6 +151,7 @@ model Organization {
   templates           Template[]
   franchiseTokens     FranchiseToken[]
   invites             Invite[]
+  auditLogs           AuditLog[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -518,4 +520,31 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT LOG
+// Immutable record of significant mutations. Created inside the same
+// transaction as the mutation so logs are always consistent with the DB state.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String   // tenant scope — always indexed
+  actorId    String?  // userId of who did it (null for system actions)
+  actorEmail String?  // snapshot — survives user deletion
+  action     String   // e.g. "task.create", "membership.delete", "role.update"
+  targetType String   // e.g. "Task", "Membership", "Role"
+  targetId   String   // ID of the affected entity
+  before     Json?    // snapshot of entity before mutation (null for creates)
+  after      Json?    // snapshot of entity after mutation (null for deletes)
+  metadata   Json?    // freeform extra context (IP, request ID, etc.)
+  createdAt  DateTime @default(now())
+
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@index([orgId, targetType, targetId])
+  @@index([orgId, actorId])
 }

@@ -95,7 +95,7 @@ export async function updateOrgSettings(
   if (!parsed.success) return { ok: false, error: "Validation failed" };
 
   try {
-    await updateOrgSettingsService(orgId, parsed.data);
+    await updateOrgSettingsService(orgId, parsed.data, userId);
     revalidatePath(`/orgs/${orgId}`, "layout");
     return { ok: true };
   } catch (err) {

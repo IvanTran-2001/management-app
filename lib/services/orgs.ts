@@ -8,6 +8,7 @@ import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { PermissionAction } from "@prisma/client";
 import { ROLE_KEYS } from "@/lib/rbac";
+import { recordAudit } from "@/lib/services/audit-log";
 import type {
   CreateOrgInput,
   JoinFranchiseInput,
@@ -115,6 +116,15 @@ export async function createOrg(userId: string, data: CreateOrgInput) {
       org.id,
       userId,
     );
+
+    await recordAudit({
+      orgId: org.id,
+      actorId: userId,
+      action: "org.create",
+      targetType: "Organization",
+      targetId: org.id,
+      after: { name: org.name, timezone: org.timezone, address: org.address },
+    }, tx);
 
     return { org, ownerRole, memberRole, membership };
   });
@@ -226,6 +236,15 @@ export async function joinFranchise(
       data: { status: "ACCEPTED", acceptedAt: new Date() },
     });
 
+    await recordAudit({
+      orgId: org.id,
+      actorId: userId,
+      action: "org.join_franchise",
+      targetType: "Organization",
+      targetId: org.id,
+      after: { name: org.name, parentId: org.parentId, timezone: org.timezone },
+    }, tx);
+
     return { org, clonedRoles, membership };
   });
   log.info("Franchise joined", { orgId: result.org.id, userId });
@@ -235,12 +254,18 @@ export async function joinFranchise(
 /**
  * Updates an org's location and schedule settings.
  * Callable by any member with MANAGE_SETTINGS permission (checked in the action layer).
+ * @param actorId - Optional caller ID forwarded from the action layer for audit log.
  */
 export async function updateOrgSettings(
   orgId: string,
   data: UpdateOrgSettingsInput,
+  actorId?: string | null,
 ) {
-  return prisma.organization.update({
+  const before = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { timezone: true, address: true, operatingDays: true, openTimeMin: true, closeTimeMin: true },
+  });
+  const updated = await prisma.organization.update({
     where: { id: orgId },
     data: {
       timezone: data.timezone,
@@ -250,11 +275,22 @@ export async function updateOrgSettings(
       closeTimeMin: data.closeTimeMin ?? null,
     },
   });
+  recordAudit({
+    orgId,
+    actorId: actorId ?? null,
+    action: "org.update",
+    targetType: "Organization",
+    targetId: orgId,
+    before: before as import("@prisma/client").Prisma.InputJsonObject | null,
+    after: { timezone: data.timezone, address: data.address ?? null, operatingDays: data.operatingDays ?? [], openTimeMin: data.openTimeMin ?? null, closeTimeMin: data.closeTimeMin ?? null },
+  });
+  return updated;
 }
 
 /**
  * Transfers org ownership to a different member.
  * Restricted to the current owner of a non-franchisee org (no parentId).
+ * Logs `org.transfer_ownership` inside the transaction with before/after owner IDs.
  */
 export async function transferOrgOwnership(
   orgId: string,
@@ -314,15 +350,27 @@ export async function transferOrgOwnership(
       }),
     ]);
 
-    return tx.organization.update({
+    const updated = await tx.organization.update({
       where: { id: orgId },
       data: { ownerId: newOwnerId },
     });
-  });
-  log.info("Org ownership transferred", {
-    orgId,
-    from: currentOwnerId,
-    to: newOwnerId,
+
+    await recordAudit({
+      orgId,
+      actorId: currentOwnerId,
+      action: "org.transfer_ownership",
+      targetType: "Organization",
+      targetId: orgId,
+      before: { ownerId: currentOwnerId },
+      after: { ownerId: newOwnerId },
+    }, tx);
+
+    log.info("Org ownership transferred", {
+      orgId,
+      from: currentOwnerId,
+      to: newOwnerId,
+    });
+    return updated;
   });
 }
 
@@ -348,6 +396,19 @@ export async function deleteOrg(
     throw new Error("Franchisee orgs cannot be deleted this way");
   if (org.name !== confirmName)
     throw new Error("Confirmation name does not match");
+
+  // Write audit log BEFORE deletion. Since AuditLog.orgId has onDelete: Cascade,
+  // this record will be deleted along with the org. For true persistence across
+  // org deletion, consider migrating to a global audit table without orgId FK.
+  await recordAudit({
+    orgId,
+    actorId: currentOwnerId,
+    action: "org.delete",
+    targetType: "Organization",
+    targetId: orgId,
+    before: { name: org.name },
+    metadata: { deletedBy: currentOwnerId, deletedAt: new Date().toISOString() },
+  });
 
   await prisma.organization.delete({ where: { id: orgId } });
   log.info("Org deleted", { orgId, deletedBy: currentOwnerId });

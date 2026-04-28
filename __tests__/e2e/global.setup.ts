@@ -26,6 +26,20 @@ export default function globalSetup() {
   // already-set env var, so this takes precedence over .env (prod).
   config({ path: resolve(process.cwd(), ".env.local"), override: true });
 
+  // Seed safety check uses SEED_DEV_IDENTIFIERS to recognise non-obvious dev
+  // URLs (e.g. Supabase pooler hostnames that don't contain "dev").
+  // Explicit opt-in required: set SEED_DEV_IDENTIFIERS or
+  // ALLOW_SEED_FROM_DATABASE_URL=true to allow seeding this DB.
+  // No automatic allowlisting — prevents accidental seeding of production DBs.
+  if (!process.env.SEED_DEV_IDENTIFIERS && !process.env.ALLOW_SEED_FROM_DATABASE_URL) {
+    console.warn(
+      "\n[global setup] WARNING: Neither SEED_DEV_IDENTIFIERS nor ALLOW_SEED_FROM_DATABASE_URL is set.\n" +
+      "The seed script may reject this DATABASE_URL. To proceed, either:\n" +
+      "  1. Set SEED_DEV_IDENTIFIERS to include your DB hostname/project ref, or\n" +
+      "  2. Set ALLOW_SEED_FROM_DATABASE_URL=true to explicitly allow seeding.\n"
+    );
+  }
+
   console.log("\n[global setup] Reseeding dev database...");
   execSync("pnpm seed:dev", { stdio: "inherit", env: process.env });
   console.log("[global setup] Seed complete.\n");

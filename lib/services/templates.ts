@@ -5,6 +5,7 @@
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { ServiceResult } from "./types";
 import {
   localMidnightUTC,
@@ -65,6 +66,7 @@ export async function createTemplate(
   orgId: string,
   name: string,
   cycleLengthDays: number,
+  actorId?: string | null,
 ): Promise<ServiceResult<{ id: string }>> {
   const template = await prisma.template.create({
     data: { orgId, name, cycleLengthDays },
@@ -74,6 +76,14 @@ export async function createTemplate(
     orgId,
     templateId: template.id,
     name,
+  });
+  recordAudit({
+    orgId,
+    actorId: actorId ?? null,
+    action: "template.create",
+    targetType: "Template",
+    targetId: template.id,
+    after: { name, cycleLengthDays },
   });
   return { ok: true, data: template };
 }
@@ -367,6 +377,7 @@ export async function applyTemplate(
   templateId: string,
   startDateStr: string,
   cycleRepeats: number,
+  actorId?: string | null,
 ): Promise<ServiceResult<{ created: number }>> {
   if (!startDateStr || !/^\d{4}-\d{2}-\d{2}$/.test(startDateStr)) {
     return { ok: false, error: "Invalid start date", code: "INVALID" };
@@ -496,20 +507,35 @@ export async function applyTemplate(
     cycleRepeats,
     created: createData.length,
   });
+  recordAudit({
+    orgId,
+    actorId: actorId ?? null,
+    action: "template.apply",
+    targetType: "Template",
+    targetId: templateId,
+    after: { startDateStr, cycleRepeats, created: createData.length },
+  });
   return { ok: true, data: { created: createData.length } };
 }
 
 /**
  * Renames a template.
+ * @param actorId - Optional caller ID forwarded from the action layer for audit log.
  */
 export async function renameTemplate(
   orgId: string,
   templateId: string,
   name: string,
+  actorId?: string | null,
 ): Promise<ServiceResult<null>> {
   const trimmed = name.trim();
   if (!trimmed)
     return { ok: false, error: "Name is required", code: "INVALID" };
+
+  const existing = await prisma.template.findFirst({
+    where: { id: templateId, orgId },
+    select: { name: true },
+  });
 
   try {
     const updated = await prisma.template.updateMany({
@@ -520,6 +546,15 @@ export async function renameTemplate(
       return { ok: false, error: "Template not found", code: "NOT_FOUND" };
 
     log.info("Template renamed", { orgId, templateId });
+    recordAudit({
+      orgId,
+      actorId: actorId ?? null,
+      action: "template.update",
+      targetType: "Template",
+      targetId: templateId,
+      before: existing ? { name: existing.name } : null,
+      after: { name: trimmed },
+    });
     return { ok: true, data: null };
   } catch (error) {
     if (
@@ -539,10 +574,12 @@ export async function renameTemplate(
 /**
  * Duplicates a template and all its entries (assignees are also copied).
  * The copy is named "Copy of <original name>" (or "Copy of Copy of …" if needed).
+ * @param actorId - Optional caller ID forwarded from the action layer for audit log.
  */
 export async function duplicateTemplate(
   orgId: string,
   templateId: string,
+  actorId?: string | null,
 ): Promise<ServiceResult<{ id: string }>> {
   const template = await prisma.template.findFirst({
     where: { id: templateId, orgId },
@@ -593,6 +630,14 @@ export async function duplicateTemplate(
         sourceTemplateId: templateId,
         newTemplateId: copy.id,
       });
+      recordAudit({
+        orgId,
+        actorId: actorId ?? null,
+        action: "template.create",
+        targetType: "Template",
+        targetId: copy.id,
+        after: { name: candidateName, sourceTemplateId: templateId },
+      });
       return { ok: true, data: { id: copy.id } };
     } catch (error) {
       if (
@@ -627,7 +672,12 @@ export async function duplicateTemplate(
 export async function deleteTemplate(
   orgId: string,
   templateId: string,
+  actorId?: string | null,
 ): Promise<ServiceResult<null>> {
+  const existing = await prisma.template.findFirst({
+    where: { id: templateId, orgId },
+    select: { name: true, cycleLengthDays: true },
+  });
   const deleted = await prisma.template.deleteMany({
     where: { id: templateId, orgId },
   });
@@ -635,5 +685,15 @@ export async function deleteTemplate(
     return { ok: false, error: "Template not found", code: "NOT_FOUND" };
 
   log.info("Template deleted", { orgId, templateId });
+  if (existing) {
+    recordAudit({
+      orgId,
+      actorId: actorId ?? null,
+      action: "template.delete",
+      targetType: "Template",
+      targetId: templateId,
+      before: { name: existing.name, cycleLengthDays: existing.cycleLengthDays },
+    });
+  }
   return { ok: true, data: null };
 }

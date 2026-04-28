@@ -47,7 +47,7 @@ export async function createBotAction(
     roleIds = [defaultRole.id];
   }
 
-  const result = await createBot(orgId, { ...parsed.data, roleIds });
+  const result = await createBot(orgId, { ...parsed.data, roleIds }, authz.userId);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/memberships`);
@@ -64,7 +64,7 @@ export async function deleteBotAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await deleteBot(orgId, membershipId);
+  const result = await deleteBot(orgId, membershipId, authz.userId);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/memberships`);
@@ -85,7 +85,7 @@ export async function memberToBotAction(
   if (!parsed.success)
     return { ok: false, error: parsed.error.issues[0].message };
 
-  const result = await memberToBot(orgId, parsed.data);
+  const result = await memberToBot(orgId, parsed.data, authz.userId);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/memberships`);

@@ -116,7 +116,7 @@ describe("createTemplateAction", () => {
       ),
     ).rejects.toThrow("NEXT_REDIRECT");
 
-    expect(createTemplateService).toHaveBeenCalledWith("org-1", "Weekly", 7);
+    expect(createTemplateService).toHaveBeenCalledWith("org-1", "Weekly", 7, "u-1");
     expect(redirect).toHaveBeenCalledWith(
       "/orgs/org-1/timetable/templates/tmpl-1",
     );
@@ -432,6 +432,7 @@ describe("applyTemplateAction", () => {
       "tmpl-1",
       "2025-01-06",
       2,
+      "u-1",
     );
     expect(revalidatePath).toHaveBeenCalledWith("/orgs/org-1/timetable");
   });
@@ -480,6 +481,7 @@ describe("renameTemplateAction", () => {
       "org-1",
       "tmpl-1",
       "New Name",
+      "u-1",
     );
   });
 });
@@ -505,7 +507,7 @@ describe("duplicateTemplateAction", () => {
     const result = await duplicateTemplateAction("org-1", "tmpl-1");
 
     expect(result).toEqual({ ok: true, id: "tmpl-2" });
-    expect(duplicateTemplateService).toHaveBeenCalledWith("org-1", "tmpl-1");
+    expect(duplicateTemplateService).toHaveBeenCalledWith("org-1", "tmpl-1", "u-1");
   });
 });
 
@@ -530,7 +532,7 @@ describe("deleteTemplateAction", () => {
     const result = await deleteTemplateAction("org-1", "tmpl-1");
 
     expect(result).toEqual({ ok: true });
-    expect(deleteTemplateService).toHaveBeenCalledWith("org-1", "tmpl-1");
+    expect(deleteTemplateService).toHaveBeenCalledWith("org-1", "tmpl-1", "u-1");
     expect(revalidatePath).toHaveBeenCalled();
   });
 

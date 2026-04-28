@@ -2,6 +2,7 @@ import { log } from "@/lib/observability";
 import { InviteType } from "@prisma/client";
 import { ROLE_KEYS } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
+import { recordAudit } from "@/lib/services/audit-log";
 import type { ServiceResult } from "./types";
 
 export type InviteItem = {
@@ -254,6 +255,14 @@ export async function createMemberInvite(
     invitedById,
     recipientId,
   });
+  recordAudit({
+    orgId,
+    actorId: invitedById,
+    action: "invite.send",
+    targetType: "Invite",
+    targetId: recipientId,
+    after: { recipientId, roleIds, workingDays, botMembershipId: botMembershipId ?? null },
+  });
   return { ok: true, data: null };
 }
 
@@ -360,6 +369,14 @@ export async function acceptMemberInvite(
     inviteId,
     userId,
     orgId: invite.orgId,
+  });
+  recordAudit({
+    orgId: invite.orgId,
+    actorId: userId,
+    action: "invite.accept",
+    targetType: "Invite",
+    targetId: inviteId,
+    after: { userId, orgId: invite.orgId },
   });
   return { ok: true, data: null };
 }
@@ -490,6 +507,14 @@ export async function acceptBotSlotInvite(
     inviteId,
     userId,
     orgId: invite.orgId,
+  });
+  recordAudit({
+    orgId: invite.orgId,
+    actorId: userId,
+    action: "invite.accept",
+    targetType: "Invite",
+    targetId: inviteId,
+    after: { userId, orgId: invite.orgId, type: "bot_slot" },
   });
   return { ok: true, data: null };
 }

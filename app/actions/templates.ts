@@ -65,6 +65,7 @@ export async function createTemplateAction(
     orgId,
     parsed.data.name,
     parsed.data.cycleLengthDays,
+    authz.userId,
   );
   if (!result.ok) return { ok: false, errors: { _: [result.error] } };
 
@@ -270,6 +271,7 @@ export async function applyTemplateAction(
     templateId,
     startDateStr,
     cycleRepeats,
+    authz.userId,
   );
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -292,7 +294,7 @@ export async function renameTemplateAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await renameTemplate(orgId, templateId, name);
+  const result = await renameTemplate(orgId, templateId, name, authz.userId);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable/templates`);
@@ -313,7 +315,7 @@ export async function duplicateTemplateAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await duplicateTemplate(orgId, templateId);
+  const result = await duplicateTemplate(orgId, templateId, authz.userId);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable/templates`);
@@ -334,7 +336,7 @@ export async function deleteTemplateAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await deleteTemplate(orgId, templateId);
+  const result = await deleteTemplate(orgId, templateId, authz.userId);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable/templates`);
