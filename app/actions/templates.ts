@@ -65,6 +65,7 @@ export async function createTemplateAction(
     orgId,
     parsed.data.name,
     parsed.data.cycleLengthDays,
+    authz.userId,
   );
   if (!result.ok) return { ok: false, errors: { _: [result.error] } };
 
@@ -334,7 +335,7 @@ export async function deleteTemplateAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await deleteTemplate(orgId, templateId);
+  const result = await deleteTemplate(orgId, templateId, authz.userId);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/orgs/${orgId}/timetable/templates`);

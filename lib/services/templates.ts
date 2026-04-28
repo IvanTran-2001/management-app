@@ -5,6 +5,7 @@
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { logAudit } from "@/lib/services/audit-log";
 import type { ServiceResult } from "./types";
 import {
   localMidnightUTC,
@@ -65,6 +66,7 @@ export async function createTemplate(
   orgId: string,
   name: string,
   cycleLengthDays: number,
+  actorId?: string | null,
 ): Promise<ServiceResult<{ id: string }>> {
   const template = await prisma.template.create({
     data: { orgId, name, cycleLengthDays },
@@ -75,6 +77,14 @@ export async function createTemplate(
     templateId: template.id,
     name,
   });
+  logAudit(prisma, {
+    orgId,
+    actorId: actorId ?? null,
+    action: "template.create",
+    entityType: "Template",
+    entityId: template.id,
+    after: { name, cycleLengthDays },
+  }).catch((err) => log.warn("Audit log failed", { err }));
   return { ok: true, data: template };
 }
 
@@ -627,7 +637,12 @@ export async function duplicateTemplate(
 export async function deleteTemplate(
   orgId: string,
   templateId: string,
+  actorId?: string | null,
 ): Promise<ServiceResult<null>> {
+  const existing = await prisma.template.findFirst({
+    where: { id: templateId, orgId },
+    select: { name: true, cycleLengthDays: true },
+  });
   const deleted = await prisma.template.deleteMany({
     where: { id: templateId, orgId },
   });
@@ -635,5 +650,15 @@ export async function deleteTemplate(
     return { ok: false, error: "Template not found", code: "NOT_FOUND" };
 
   log.info("Template deleted", { orgId, templateId });
+  if (existing) {
+    logAudit(prisma, {
+      orgId,
+      actorId: actorId ?? null,
+      action: "template.delete",
+      entityType: "Template",
+      entityId: templateId,
+      before: { name: existing.name, cycleLengthDays: existing.cycleLengthDays },
+    }).catch((err) => log.warn("Audit log failed", { err }));
+  }
   return { ok: true, data: null };
 }

@@ -108,6 +108,7 @@ model User {
   sentInvites               Invite[]       @relation("SentInvites")
   receivedInvites           Invite[]       @relation("ReceivedInvites")
   receivedNotifications     Notification[] @relation("ReceivedNotifications")
+  auditLogs                 AuditLog[]
 
   accounts      Account[]
   sessions      Session[]
@@ -150,6 +151,7 @@ model Organization {
   templates           Template[]
   franchiseTokens     FranchiseToken[]
   invites             Invite[]
+  auditLogs           AuditLog[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -518,4 +520,35 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT LOG
+// Immutable record of significant mutations. Created inside the same
+// transaction as the mutation so logs are always consistent with the DB state.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  /// null for system-initiated actions (seeds, scheduled jobs)
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  /// Dot-namespaced verb: "org.create", "role.delete", "task.update", etc.
+  action     String
+
+  entityType String   // "Organization", "Role", "Task", "Template", "Membership"
+  entityId   String   // primary key of the affected record
+
+  before     Json?    // snapshot before the change (null for creates)
+  after      Json?    // snapshot after the change (null for deletes)
+
+  createdAt  DateTime @default(now())
+
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([actorId])
 }

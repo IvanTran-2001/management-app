@@ -1,6 +1,7 @@
 import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { Prisma, InviteType } from "@prisma/client";
+import { logAudit } from "@/lib/services/audit-log";
 import type { CreateMembershipInput } from "@/lib/validators/membership";
 import type { ServiceResult } from "./types";
 import { ROLE_KEYS } from "@/lib/rbac";
@@ -75,6 +76,7 @@ export async function createMembership(
 export async function deleteMembership(
   orgId: string,
   membershipId: string,
+  actorId?: string | null,
 ): Promise<ServiceResult<null>> {
   const membership = await prisma.membership.findUnique({
     where: { id: membershipId, orgId },
@@ -124,6 +126,14 @@ export async function deleteMembership(
       data: { status: "DECLINED", declinedAt: new Date() },
     });
     await tx.membership.delete({ where: { id: membershipId } });
+    await logAudit(tx, {
+      orgId,
+      actorId: actorId ?? null,
+      action: "membership.remove",
+      entityType: "Membership",
+      entityId: membershipId,
+      before: { userId: membership.userId },
+    });
   });
   log.info("Membership deleted", { orgId, membershipId });
   return { ok: true, data: null };

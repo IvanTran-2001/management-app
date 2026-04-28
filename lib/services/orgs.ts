@@ -8,6 +8,7 @@ import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { PermissionAction } from "@prisma/client";
 import { ROLE_KEYS } from "@/lib/rbac";
+import { logAudit } from "@/lib/services/audit-log";
 import type {
   CreateOrgInput,
   JoinFranchiseInput,
@@ -115,6 +116,15 @@ export async function createOrg(userId: string, data: CreateOrgInput) {
       org.id,
       userId,
     );
+
+    await logAudit(tx, {
+      orgId: org.id,
+      actorId: userId,
+      action: "org.create",
+      entityType: "Organization",
+      entityId: org.id,
+      after: { name: org.name, timezone: org.timezone, address: org.address },
+    });
 
     return { org, ownerRole, memberRole, membership };
   });
@@ -226,6 +236,15 @@ export async function joinFranchise(
       data: { status: "ACCEPTED", acceptedAt: new Date() },
     });
 
+    await logAudit(tx, {
+      orgId: org.id,
+      actorId: userId,
+      action: "org.join_franchise",
+      entityType: "Organization",
+      entityId: org.id,
+      after: { name: org.name, parentId: org.parentId, timezone: org.timezone },
+    });
+
     return { org, clonedRoles, membership };
   });
   log.info("Franchise joined", { orgId: result.org.id, userId });
@@ -239,8 +258,13 @@ export async function joinFranchise(
 export async function updateOrgSettings(
   orgId: string,
   data: UpdateOrgSettingsInput,
+  actorId?: string | null,
 ) {
-  return prisma.organization.update({
+  const before = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { timezone: true, address: true, operatingDays: true, openTimeMin: true, closeTimeMin: true },
+  });
+  const updated = await prisma.organization.update({
     where: { id: orgId },
     data: {
       timezone: data.timezone,
@@ -250,6 +274,16 @@ export async function updateOrgSettings(
       closeTimeMin: data.closeTimeMin ?? null,
     },
   });
+  logAudit(prisma, {
+    orgId,
+    actorId: actorId ?? null,
+    action: "org.update",
+    entityType: "Organization",
+    entityId: orgId,
+    before: before as import("@prisma/client").Prisma.InputJsonObject | null,
+    after: { timezone: data.timezone, address: data.address ?? null, operatingDays: data.operatingDays ?? [], openTimeMin: data.openTimeMin ?? null, closeTimeMin: data.closeTimeMin ?? null },
+  }).catch((err) => log.warn("Audit log failed", { err }));
+  return updated;
 }
 
 /**
@@ -314,10 +348,22 @@ export async function transferOrgOwnership(
       }),
     ]);
 
-    return tx.organization.update({
+    const updated = await tx.organization.update({
       where: { id: orgId },
       data: { ownerId: newOwnerId },
     });
+
+    await logAudit(tx, {
+      orgId,
+      actorId: currentOwnerId,
+      action: "org.transfer_ownership",
+      entityType: "Organization",
+      entityId: orgId,
+      before: { ownerId: currentOwnerId },
+      after: { ownerId: newOwnerId },
+    });
+
+    return updated;
   });
   log.info("Org ownership transferred", {
     orgId,

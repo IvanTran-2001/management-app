@@ -9,6 +9,7 @@ import { log } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { PermissionAction } from "@prisma/client";
 import { ROLE_KEYS } from "@/lib/rbac";
+import { logAudit } from "@/lib/services/audit-log";
 import type { RoleFormInput } from "@/lib/validators/role";
 import type { ServiceResult } from "./types";
 
@@ -51,8 +52,12 @@ export async function getRoles(orgId: string): Promise<RoleWithPermissions[]> {
 export async function deleteRole(
   orgId: string,
   roleId: string,
+  actorId?: string | null,
 ): Promise<ServiceResult<null>> {
-  const role = await prisma.role.findFirst({ where: { id: roleId, orgId } });
+  const role = await prisma.role.findFirst({
+    where: { id: roleId, orgId },
+    include: { permissions: { select: { action: true } } },
+  });
   if (!role) return { ok: false, error: "Role not found.", code: "NOT_FOUND" };
   if (!role.isDeletable)
     return {
@@ -63,6 +68,14 @@ export async function deleteRole(
 
   await prisma.role.delete({ where: { id: roleId } });
   log.info("Role deleted", { orgId, roleId });
+  logAudit(prisma, {
+    orgId,
+    actorId: actorId ?? null,
+    action: "role.delete",
+    entityType: "Role",
+    entityId: roleId,
+    before: { name: role.name, color: role.color, permissions: role.permissions.map((p) => p.action) },
+  }).catch((err) => log.warn("Audit log failed", { err }));
   return { ok: true, data: null };
 }
 
@@ -111,6 +124,7 @@ export async function getRoleById(
 export async function createRole(
   orgId: string,
   data: RoleFormInput,
+  actorId?: string | null,
 ): Promise<ServiceResult<RoleWithPermissions>> {
   const role = await prisma.$transaction(async (tx) => {
     const taskIds = [...new Set(data.taskIds)];
@@ -149,10 +163,21 @@ export async function createRole(
       });
     }
 
-    return tx.role.findUniqueOrThrow({
+    const finalRole = await tx.role.findUniqueOrThrow({
       where: { id: created.id },
       select: roleSelect,
     });
+
+    await logAudit(tx, {
+      orgId,
+      actorId: actorId ?? null,
+      action: "role.create",
+      entityType: "Role",
+      entityId: created.id,
+      after: { name: finalRole.name, color: finalRole.color, permissions: finalRole.permissions.map((p) => p.action) },
+    });
+
+    return finalRole;
   });
 
   if (!role) {
@@ -188,9 +213,11 @@ export async function updateRole(
   orgId: string,
   roleId: string,
   data: RoleFormInput,
+  actorId?: string | null,
 ): Promise<ServiceResult<RoleWithPermissions>> {
   const existing = await prisma.role.findFirst({
     where: { id: roleId, orgId },
+    include: { permissions: { select: { action: true } } },
   });
   if (!existing)
     return { ok: false, error: "Role not found.", code: "NOT_FOUND" };
@@ -230,10 +257,22 @@ export async function updateRole(
       });
     }
 
-    return tx.role.findUniqueOrThrow({
+    const finalRole = await tx.role.findUniqueOrThrow({
       where: { id: roleId },
       select: roleSelect,
     });
+
+    await logAudit(tx, {
+      orgId,
+      actorId: actorId ?? null,
+      action: "role.update",
+      entityType: "Role",
+      entityId: roleId,
+      before: existing ? { name: existing.name, color: existing.color, permissions: existing.permissions.map((p) => p.action) } : null,
+      after: { name: finalRole.name, color: finalRole.color, permissions: finalRole.permissions.map((p) => p.action) },
+    });
+
+    return finalRole;
   });
 
   if (!updated) {
