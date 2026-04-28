@@ -30,13 +30,21 @@ describe("createRole", () => {
 
     // Create a task to attach eligibility to
     const task = await prisma.task.create({
-      data: { orgId: org.id, name: `Eligible Task ${crypto.randomUUID()}`, color: "#abc", durationMin: 15 },
+      data: {
+        orgId: org.id,
+        name: `Eligible Task ${crypto.randomUUID()}`,
+        color: "#abc",
+        durationMin: 15,
+      },
     });
 
     const result = await createRole(org.id, {
       name: `Baker ${crypto.randomUUID()}`,
       color: "#ff9900",
-      permissions: [PermissionAction.MANAGE_TASKS, PermissionAction.VIEW_TIMETABLE],
+      permissions: [
+        PermissionAction.MANAGE_TASKS,
+        PermissionAction.VIEW_TIMETABLE,
+      ],
       taskIds: [task.id],
     });
 
@@ -45,7 +53,9 @@ describe("createRole", () => {
 
     const role = result.data;
     expect(role.name).toContain("Baker");
-    expect(role.permissions.map((p) => p.action)).toContain(PermissionAction.MANAGE_TASKS);
+    expect(role.permissions.map((p) => p.action)).toContain(
+      PermissionAction.MANAGE_TASKS,
+    );
     expect(role.eligibleFor.map((e) => e.task.id)).toContain(task.id);
 
     // Confirm DB state directly
@@ -63,7 +73,12 @@ describe("createRole", () => {
       where: { id: { not: org.id } },
     });
     const foreignTask = await prisma.task.create({
-      data: { orgId: otherOrg.id, name: "Foreign Task", color: "#000", durationMin: 10 },
+      data: {
+        orgId: otherOrg.id,
+        name: "Foreign Task",
+        color: "#000",
+        durationMin: 10,
+      },
     });
 
     const before = await prisma.role.count({ where: { orgId: org.id } });
@@ -151,16 +166,29 @@ describe("updateRole", () => {
     const org = await getSeedOrg();
 
     const task1 = await prisma.task.create({
-      data: { orgId: org.id, name: `Task A ${crypto.randomUUID()}`, color: "#111", durationMin: 10 },
+      data: {
+        orgId: org.id,
+        name: `Task A ${crypto.randomUUID()}`,
+        color: "#111",
+        durationMin: 10,
+      },
     });
     const task2 = await prisma.task.create({
-      data: { orgId: org.id, name: `Task B ${crypto.randomUUID()}`, color: "#222", durationMin: 20 },
+      data: {
+        orgId: org.id,
+        name: `Task B ${crypto.randomUUID()}`,
+        color: "#222",
+        durationMin: 20,
+      },
     });
 
     const created = await createRole(org.id, {
       name: `Updatable Role ${crypto.randomUUID()}`,
       color: "#aaa",
-      permissions: [PermissionAction.MANAGE_TASKS, PermissionAction.VIEW_TIMETABLE],
+      permissions: [
+        PermissionAction.MANAGE_TASKS,
+        PermissionAction.VIEW_TIMETABLE,
+      ],
       taskIds: [task1.id],
     });
     expect(created.ok).toBe(true);

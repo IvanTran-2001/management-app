@@ -117,10 +117,14 @@ describe("deleteMembership", () => {
     const result = await deleteMembership(org.id, membershipId);
     expect(result.ok).toBe(true);
 
-    const found = await prisma.membership.findUnique({ where: { id: membershipId } });
+    const found = await prisma.membership.findUnique({
+      where: { id: membershipId },
+    });
     expect(found).toBeNull();
 
-    const memberRoles = await prisma.memberRole.findMany({ where: { membershipId } });
+    const memberRoles = await prisma.memberRole.findMany({
+      where: { membershipId },
+    });
     expect(memberRoles).toHaveLength(0);
   });
 
@@ -138,7 +142,9 @@ describe("deleteMembership", () => {
     expect(result.code).toBe("INVALID");
 
     // Owner membership still intact
-    const still = await prisma.membership.findUnique({ where: { id: ownerMembership.id } });
+    const still = await prisma.membership.findUnique({
+      where: { id: ownerMembership.id },
+    });
     expect(still).not.toBeNull();
   });
 

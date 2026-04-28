@@ -15,8 +15,16 @@ import { resolve } from "path";
 export default function globalSetup() {
   // Load .env.local so DATABASE_URL and SEED_DEV_IDENTIFIERS are available
   // for the seed subprocess.
-  config({ path: resolve(process.cwd(), ".env"), override: false, quiet: true });
-  config({ path: resolve(process.cwd(), ".env.local"), override: true, quiet: true });
+  config({
+    path: resolve(process.cwd(), ".env"),
+    override: false,
+    quiet: true,
+  });
+  config({
+    path: resolve(process.cwd(), ".env.local"),
+    override: true,
+    quiet: true,
+  });
 
   if (process.env.CI) {
     console.log(

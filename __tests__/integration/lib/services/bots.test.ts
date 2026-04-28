@@ -215,7 +215,12 @@ describe("botToMember", () => {
 
     // Create a bot slot for this test
     const bot = await prisma.membership.create({
-      data: { orgId: org.id, userId: null, botName: "Temp Slot", workingDays: [] },
+      data: {
+        orgId: org.id,
+        userId: null,
+        botName: "Temp Slot",
+        workingDays: [],
+      },
     });
     await prisma.memberRole.create({
       data: { membershipId: bot.id, roleId: role.id },
@@ -248,7 +253,12 @@ describe("botToMember", () => {
 
     // Create a fresh bot slot
     const bot = await prisma.membership.create({
-      data: { orgId: org.id, userId: null, botName: "Conflict Slot", workingDays: [] },
+      data: {
+        orgId: org.id,
+        userId: null,
+        botName: "Conflict Slot",
+        workingDays: [],
+      },
     });
     await prisma.memberRole.create({
       data: { membershipId: bot.id, roleId: role.id },

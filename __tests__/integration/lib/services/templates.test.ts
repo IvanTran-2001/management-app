@@ -66,7 +66,9 @@ describe("createTemplate", () => {
 describe("addTemplateInstance", () => {
   it("adds a task entry to a template at the correct day and time", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     const result = await addTemplateInstance(
@@ -88,7 +90,9 @@ describe("addTemplateInstance", () => {
 
   it("returns INVALID when dayIndex is out of range", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     const result = await addTemplateInstance(
@@ -128,7 +132,9 @@ describe("addTemplateInstance", () => {
 describe("removeTemplateInstance", () => {
   it("removes the entry from the template", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 0, 360);
@@ -163,7 +169,9 @@ describe("removeTemplateInstance", () => {
 describe("updateTemplateInstance", () => {
   it("updates the dayIndex of a template entry", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 0, 360);
@@ -185,7 +193,9 @@ describe("updateTemplateInstance", () => {
 
   it("returns INVALID when the new dayIndex is out of range", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 0, 360);
@@ -224,7 +234,9 @@ describe("updateTemplateDays", () => {
 
   it("returns INVALID when shrinking would strand existing entries", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     // Add an entry at dayIndex 5 — would be stranded by a shrink to 3
@@ -245,7 +257,9 @@ describe("updateTemplateDays", () => {
 describe("addTemplateInstanceAssignee / removeTemplateInstanceAssignee", () => {
   it("adds and removes a membership from a template entry", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const member = await prisma.membership.findFirstOrThrow({
       where: { orgId: org.id, userId: { not: null } },
     });
@@ -285,7 +299,9 @@ describe("addTemplateInstanceAssignee / removeTemplateInstanceAssignee", () => {
 
   it("addTemplateInstanceAssignee returns NOT_FOUND for a cross-org membership", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const otherOrg = await prisma.organization.findFirstOrThrow({
       where: { id: { not: org.id } },
     });
@@ -349,7 +365,9 @@ describe("renameTemplate", () => {
 describe("duplicateTemplate", () => {
   it("creates a copy with all entries preserved", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 2, 480);
@@ -388,7 +406,9 @@ describe("duplicateTemplate", () => {
 describe("deleteTemplate", () => {
   it("removes the template and cascades its entries", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 0, 360);

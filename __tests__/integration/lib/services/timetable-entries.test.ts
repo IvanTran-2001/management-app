@@ -21,9 +21,16 @@ import { getSeedOrg } from "../../helpers";
 describe("createTimetableEntry", () => {
   it("persists an entry with snapshot fields copied from the task", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
 
-    const result = await createTimetableEntry(org.id, task.id, "2026-08-01", 360);
+    const result = await createTimetableEntry(
+      org.id,
+      task.id,
+      "2026-08-01",
+      360,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -59,7 +66,9 @@ describe("createTimetableEntry", () => {
 describe("listTimetableEntries", () => {
   it("returns all entries for the org (scoped)", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     await createTimetableEntry(org.id, task.id, "2026-08-02", 480);
 
     const entries = await listTimetableEntries(org.id);
@@ -70,7 +79,9 @@ describe("listTimetableEntries", () => {
 
   it("filters by exact status when the status option is provided", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const created = await createTimetableEntry(
       org.id,
       task.id,
@@ -81,11 +92,7 @@ describe("listTimetableEntries", () => {
     if (!created.ok) return;
 
     // Mark it DONE
-    await updateTimetableEntryStatus(
-      org.id,
-      created.data.id,
-      EntryStatus.DONE,
-    );
+    await updateTimetableEntryStatus(org.id, created.data.id, EntryStatus.DONE);
 
     const todos = await listTimetableEntries(org.id, {
       status: EntryStatus.TODO,
@@ -102,7 +109,9 @@ describe("listTimetableEntries", () => {
 describe("getTimetableEntry", () => {
   it("returns the entry when it exists in the org", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const created = await createTimetableEntry(
       org.id,
       task.id,
@@ -124,7 +133,9 @@ describe("getTimetableEntry", () => {
     const otherOrg = await prisma.organization.findFirstOrThrow({
       where: { id: { not: org.id } },
     });
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const created = await createTimetableEntry(
       org.id,
       task.id,
@@ -145,7 +156,9 @@ describe("getTimetableEntry", () => {
 describe("updateTimetableEntryStatus", () => {
   it("updates the status of an existing entry", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const created = await createTimetableEntry(
       org.id,
       task.id,
@@ -184,7 +197,9 @@ describe("updateTimetableEntryStatus", () => {
 describe("updateTimetableEntry", () => {
   it("persists a status change", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const created = await createTimetableEntry(
       org.id,
       task.id,
@@ -219,7 +234,9 @@ describe("updateTimetableEntry", () => {
 describe("deleteTimetableEntry", () => {
   it("removes the entry from the DB", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const created = await createTimetableEntry(
       org.id,
       task.id,
@@ -253,7 +270,9 @@ describe("deleteTimetableEntry", () => {
 describe("addTimetableEntryAssignee / removeTimetableEntryAssignee", () => {
   it("adds and removes a membership from an entry", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const member = await prisma.membership.findFirstOrThrow({
       where: { orgId: org.id, userId: { not: null } },
     });
@@ -295,7 +314,9 @@ describe("addTimetableEntryAssignee / removeTimetableEntryAssignee", () => {
 
   it("returns NOT_FOUND when removing a link that does not exist", async () => {
     const org = await getSeedOrg();
-    const task = await prisma.task.findFirstOrThrow({ where: { orgId: org.id } });
+    const task = await prisma.task.findFirstOrThrow({
+      where: { orgId: org.id },
+    });
     const member = await prisma.membership.findFirstOrThrow({
       where: { orgId: org.id, userId: { not: null } },
     });

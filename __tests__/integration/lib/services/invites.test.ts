@@ -55,7 +55,13 @@ describe("createMemberInvite", () => {
     const user = await getSeedUser(); // Casey is already a member
     const role = await getDefaultRole(org.id);
 
-    const result = await createMemberInvite(org.id, null, user.id, [role.id], []);
+    const result = await createMemberInvite(
+      org.id,
+      null,
+      user.id,
+      [role.id],
+      [],
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) return;

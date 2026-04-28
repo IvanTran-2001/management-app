@@ -10,4 +10,8 @@ import { resolve } from "path";
  * other secrets are available when Prisma initialises.
  */
 config({ path: resolve(process.cwd(), ".env"), override: false, quiet: true });
-config({ path: resolve(process.cwd(), ".env.local"), override: true, quiet: true });
+config({
+  path: resolve(process.cwd(), ".env.local"),
+  override: true,
+  quiet: true,
+});

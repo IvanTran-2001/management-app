@@ -5,7 +5,12 @@
  * and cascade cleanup when a task is deleted while eligibility rows exist.
  */
 import { prisma } from "@/lib/prisma";
-import { createTask, deleteTask, getTasks, updateTask } from "@/lib/services/tasks";
+import {
+  createTask,
+  deleteTask,
+  getTasks,
+  updateTask,
+} from "@/lib/services/tasks";
 
 const SEED_USER_EMAIL =
   process.env.INTEGRATION_TEST_USER_EMAIL ?? "alt28919@gmail.com";
@@ -23,7 +28,11 @@ async function getSeedOrg() {
 }
 
 function uniqueTask() {
-  return { title: `Test Task ${crypto.randomUUID()}`, color: "#ff0000", durationMin: 30 };
+  return {
+    title: `Test Task ${crypto.randomUUID()}`,
+    color: "#ff0000",
+    durationMin: 30,
+  };
 }
 
 describe("createTask", () => {
@@ -131,7 +140,9 @@ describe("updateTask", () => {
     });
     expect(result.ok).toBe(true);
 
-    const updated = await prisma.task.findUniqueOrThrow({ where: { id: task.id } });
+    const updated = await prisma.task.findUniqueOrThrow({
+      where: { id: task.id },
+    });
     expect(updated.name).toBe("Updated Task");
     expect(updated.durationMin).toBe(60);
   });
