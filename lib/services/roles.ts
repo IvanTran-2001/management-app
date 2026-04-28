@@ -215,20 +215,15 @@ export async function updateRole(
   data: RoleFormInput,
   actorId?: string | null,
 ): Promise<ServiceResult<RoleWithPermissions>> {
-  const existing = await prisma.role.findFirst({
-    where: { id: roleId, orgId },
-    include: { permissions: { select: { action: true } } },
-  });
-  if (!existing)
-    return { ok: false, error: "Role not found.", code: "NOT_FOUND" };
-  if (existing.key === ROLE_KEYS.OWNER)
-    return {
-      ok: false,
-      error: "The Owner role cannot be edited.",
-      code: "INVALID",
-    };
-
   const updated = await prisma.$transaction(async (tx) => {
+    // Fetch the current role inside the transaction for a consistent snapshot
+    const existing = await tx.role.findFirst({
+      where: { id: roleId, orgId },
+      include: { permissions: { select: { action: true } } },
+    });
+    if (!existing) return { error: "NOT_FOUND" as const };
+    if (existing.key === ROLE_KEYS.OWNER) return { error: "OWNER_IMMUTABLE" as const };
+
     const taskIds = [...new Set(data.taskIds)];
     const permissionActions = [...new Set(data.permissions)];
     if (taskIds.length > 0) {
@@ -236,7 +231,7 @@ export async function updateRole(
         where: { orgId, id: { in: taskIds } },
         select: { id: true },
       });
-      if (orgTasks.length !== taskIds.length) return null;
+      if (orgTasks.length !== taskIds.length) return { error: "INVALID_TASKS" as const };
     }
 
     await tx.role.update({
@@ -268,14 +263,24 @@ export async function updateRole(
       action: "role.update",
       targetType: "Role",
       targetId: roleId,
-      before: existing ? { name: existing.name, color: existing.color, permissions: existing.permissions.map((p) => p.action) } : null,
+      before: { name: existing.name, color: existing.color, permissions: existing.permissions.map((p) => p.action) },
       after: { name: finalRole.name, color: finalRole.color, permissions: finalRole.permissions.map((p) => p.action) },
     }, tx);
 
-    return finalRole;
+    return { error: null, data: finalRole };
   });
 
-  if (!updated) {
+  if (updated.error === "NOT_FOUND") {
+    return { ok: false, error: "Role not found.", code: "NOT_FOUND" };
+  }
+  if (updated.error === "OWNER_IMMUTABLE") {
+    return {
+      ok: false,
+      error: "The Owner role cannot be edited.",
+      code: "INVALID",
+    };
+  }
+  if (updated.error === "INVALID_TASKS") {
     return {
       ok: false,
       error: "One or more tasks are invalid for this organization.",
@@ -284,5 +289,5 @@ export async function updateRole(
   }
 
   log.info("Role updated", { orgId, roleId });
-  return { ok: true, data: updated };
+  return { ok: true, data: updated.data };
 }
