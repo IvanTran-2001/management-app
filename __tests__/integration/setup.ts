@@ -9,5 +9,5 @@ import { resolve } from "path";
  * runs inside each worker before any tests execute, ensuring DATABASE_URL and
  * other secrets are available when Prisma initialises.
  */
-config({ path: resolve(process.cwd(), ".env"), override: false });
-config({ path: resolve(process.cwd(), ".env.local"), override: true });
+config({ path: resolve(process.cwd(), ".env"), override: false, quiet: true });
+config({ path: resolve(process.cwd(), ".env.local"), override: true, quiet: true });

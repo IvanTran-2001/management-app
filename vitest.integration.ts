@@ -1,5 +1,4 @@
 import { defineConfig } from "vitest/config";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 /**
  * Vitest config for integration tests.
@@ -15,7 +14,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
  * from a previous failed run is always cleaned up.
  */
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  resolve: { tsconfigPaths: true },
   test: {
     environment: "node",
     globals: true,
