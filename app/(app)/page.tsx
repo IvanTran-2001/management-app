@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { OrgNotFoundToast } from "./org-not-found-toast";
 
-// TODO: remove redirect when workspace page is implemented
+// TODO: remove redirect and render workspace content when workspace page is implemented
 export default async function Home({
   searchParams,
 }: {

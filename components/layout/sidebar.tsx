@@ -91,7 +91,7 @@ function NavCollapsible({
 
 function getOrgItems(orgId: string): NavItem[] {
   return [
-    // TODO: remove disabled when overview page is implemented
+    // TODO: remove `disabled: true` when overview page is implemented
     { title: "Overview", url: `/orgs/${orgId}`, icon: Building2, disabled: true },
     { title: "Timetable", url: `/orgs/${orgId}/timetable`, icon: Calendar },
     { title: "Tasks", url: `/orgs/${orgId}/tasks`, icon: ListTodo },
@@ -119,14 +119,14 @@ function getSettingsItems(orgId: string): NavItem[] {
     },
     { title: "Roles", url: `/orgs/${orgId}/settings/roles`, icon: ShieldCheck },
     {
-      // TODO: remove disabled when settings timetable page is implemented
+      // TODO: remove `disabled: true` when settings timetable page is implemented
       title: "Timetable",
       url: `/orgs/${orgId}/settings/timetable`,
       icon: Calendar,
       disabled: true,
     },
     {
-      // TODO: remove disabled when settings notification page is implemented
+      // TODO: remove `disabled: true` when settings notification page is implemented
       title: "Notification",
       url: `/orgs/${orgId}/settings/notification`,
       icon: Bell,
