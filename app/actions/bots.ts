@@ -152,8 +152,7 @@ export async function inviteBotSlotAction(
     recipient.id,
     roleIds,
     membership.workingDays,
-    membershipId,
-    authz.userEmail,
+    { botMembershipId: membershipId, actorEmail: authz.userEmail },
   );
   if (!result.ok) return { ok: false, error: result.error };
 

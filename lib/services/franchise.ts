@@ -232,7 +232,8 @@ export async function cloneTimetableSettingsFromParent(
 
 /** Issues a 7-day single-use franchise invite token tied to an email and
  *  creates a FRANCHISE invite notification for the recipient.
- *  @param actorId - Optional caller ID forwarded from the action layer for audit log. */
+ *  @param actorId - Optional caller ID forwarded from the action layer for audit log.
+ *  @param actorEmail - Snapshot of the actor's email for audit log; preserved after deletion. */
 export async function createFranchiseToken(
   orgId: string,
   email: string,
@@ -328,7 +329,9 @@ export async function createFranchiseToken(
   return { ok: true, data: undefined };
 }
 
-/** Revokes an unused franchise invite token. */
+/** Revokes an unused franchise invite token.
+ *  @param actorId - Optional caller ID forwarded from the action layer for audit log.
+ *  @param actorEmail - Snapshot of the actor's email for audit log; preserved after deletion. */
 export async function deleteFranchiseToken(
   orgId: string,
   tokenId: string,
@@ -392,7 +395,8 @@ export async function extendFranchiseToken(
 }
 
 /** Permanently deletes a franchisee org (cascades all related data).
- *  @param actorId - Optional caller ID forwarded from the action layer for audit log. */
+ *  @param actorId - Optional caller ID forwarded from the action layer for audit log.
+ *  @param actorEmail - Snapshot of the actor's email for audit log; preserved after deletion. */
 export async function removeFranchisee(
   orgId: string,
   childOrgId: string,
@@ -420,7 +424,9 @@ export async function removeFranchisee(
 
 /** Transfers ownership of a franchisee org to a different user (by email).
  *  Creates a membership for the new owner if they don't have one yet.
- *  All steps are atomic. */
+ *  All steps are atomic.
+ *  @param actorId - Optional caller ID forwarded from the action layer for audit log.
+ *  @param actorEmail - Snapshot of the actor's email for audit log; preserved after deletion. */
 export async function changeFranchiseeOwner(
   orgId: string,
   childOrgId: string,

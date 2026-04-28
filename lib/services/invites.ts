@@ -134,9 +134,9 @@ export async function createMemberInvite(
   recipientId: string,
   roleIds: string[],
   workingDays: string[],
-  botMembershipId?: string,
-  actorEmail?: string | null,
+  options?: { botMembershipId?: string; actorEmail?: string | null },
 ): Promise<ServiceResult<null>> {
+  const { botMembershipId, actorEmail } = options ?? {};
   const [org, inviter, validRoles] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: orgId },

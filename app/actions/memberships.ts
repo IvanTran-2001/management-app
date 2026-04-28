@@ -69,8 +69,7 @@ export async function sendMemberInviteAction(
     recipient.id,
     roleIds,
     workingDays,
-    undefined,
-    authz.userEmail,
+    { actorEmail: authz.userEmail },
   );
   if (!result.ok) {
     const field =
