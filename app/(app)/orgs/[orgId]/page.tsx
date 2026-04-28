@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireOrgMemberPage } from "@/lib/authz";
 
-// TODO: remove redirect when overview page is implemented
+// TODO: remove redirect and render overview content when overview page is implemented
 const Page = async ({ params }: { params: Promise<{ orgId: string }> }) => {
   const { orgId } = await params;
   await requireOrgMemberPage(orgId);

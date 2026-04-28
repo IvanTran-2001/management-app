@@ -126,11 +126,11 @@ export const NavBar = async () => {
                   {user.email}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {/* TODO: enable when profile page is implemented */}
+                {/* TODO: restore <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem> when profile page is implemented */}
                 <DropdownMenuItem disabled>
                   Profile
                 </DropdownMenuItem>
-                {/* TODO: enable when account settings page is implemented */}
+                {/* TODO: restore <DropdownMenuItem asChild><Link href="/settings/account">Account Settings</Link></DropdownMenuItem> when account settings page is implemented */}
                 <DropdownMenuItem disabled>
                   Account Settings
                 </DropdownMenuItem>
