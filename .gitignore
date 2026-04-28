@@ -53,3 +53,6 @@ next-env.d.ts
 # test artifacts
 test_output.log
 *.log
+
+# private / one-off scripts (not for version control)
+/private/
