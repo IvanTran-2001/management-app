@@ -168,14 +168,14 @@ export async function createRole(
       select: roleSelect,
     });
 
-    recordAudit({
+    await recordAudit({
       orgId,
       actorId: actorId ?? null,
       action: "role.create",
       targetType: "Role",
       targetId: created.id,
       after: { name: finalRole.name, color: finalRole.color, permissions: finalRole.permissions.map((p) => p.action) },
-    });
+    }, tx);
 
     return finalRole;
   });
@@ -262,7 +262,7 @@ export async function updateRole(
       select: roleSelect,
     });
 
-    recordAudit({
+    await recordAudit({
       orgId,
       actorId: actorId ?? null,
       action: "role.update",
@@ -270,7 +270,7 @@ export async function updateRole(
       targetId: roleId,
       before: existing ? { name: existing.name, color: existing.color, permissions: existing.permissions.map((p) => p.action) } : null,
       after: { name: finalRole.name, color: finalRole.color, permissions: finalRole.permissions.map((p) => p.action) },
-    });
+    }, tx);
 
     return finalRole;
   });

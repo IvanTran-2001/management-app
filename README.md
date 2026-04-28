@@ -360,9 +360,9 @@ Significant org mutations are recorded in the `AuditLog` table. The service laye
 
 | File                          | Purpose                                                                                                    |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `lib/services/audit-log.ts`   | `logAudit(db, entry)` — Zod-validated write; accepts a Prisma client or transaction handle. `getAuditLogs(orgId, limit?)` — ordered read. |
+| `lib/services/audit-log.ts`   | `recordAudit(params, client?)` — write helper that never throws; accepts optional Prisma client or transaction handle for atomic writes. `getAuditLogs(orgId, limit?)` — ordered read. |
 
-`logAudit` accepts either a full `PrismaClient` (fire-and-forget `.catch()`) or a transaction handle `Tx` (atomic, awaited inside `$transaction`). The Zod schema enforces `cuid()` on `orgId`/`actorId` and requires `action`, `entityType`, and `entityId`.
+`recordAudit` accepts an optional `client` parameter (either `PrismaClient` or `Prisma.TransactionClient`). When called inside a `$transaction`, pass the transaction handle (`tx`) to ensure the audit write is part of the same atomic operation. When called outside a transaction, omit the client parameter and the root Prisma client will be used. The function never throws — audit failures are logged to Sentry and never propagate to the caller.
 
 ### Logged actions
 
@@ -372,13 +372,17 @@ Significant org mutations are recorded in the `AuditLog` table. The service laye
 | `org.join_franchise`      | Franchisee joined via token                                |
 | `org.update`              | Org settings changed (timezone, address, hours)            |
 | `org.transfer_ownership`  | Ownership transferred to a different member                |
+| `org.delete`              | Org permanently deleted by owner                           |
 | `task.create`             | Task definition created                                    |
 | `task.update`             | Task definition updated                                    |
 | `task.delete`             | Task definition deleted                                    |
 | `role.create`             | Custom role created                                        |
 | `role.update`             | Role name, color, or permissions changed                   |
 | `role.delete`             | Custom role deleted                                        |
-| `membership.remove`       | Member removed from org                                    |
+| `membership.create`       | Member added to org                                        |
+| `membership.update`       | Member working days or roles changed                       |
+| `membership.status_change`| Member status toggled (ACTIVE / RESTRICTED)                |
+| `membership.delete`       | Member removed from org                                    |
 | `invite.send`             | Member or franchise invite sent                            |
 | `invite.accept`           | Invite accepted (member or bot-slot)                       |
 | `template.create`         | Template created or duplicated                             |

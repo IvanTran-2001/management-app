@@ -117,14 +117,14 @@ export async function createOrg(userId: string, data: CreateOrgInput) {
       userId,
     );
 
-    recordAudit({
+    await recordAudit({
       orgId: org.id,
       actorId: userId,
       action: "org.create",
       targetType: "Organization",
       targetId: org.id,
       after: { name: org.name, timezone: org.timezone, address: org.address },
-    });
+    }, tx);
 
     return { org, ownerRole, memberRole, membership };
   });
@@ -236,14 +236,14 @@ export async function joinFranchise(
       data: { status: "ACCEPTED", acceptedAt: new Date() },
     });
 
-    recordAudit({
+    await recordAudit({
       orgId: org.id,
       actorId: userId,
       action: "org.join_franchise",
       targetType: "Organization",
       targetId: org.id,
       after: { name: org.name, parentId: org.parentId, timezone: org.timezone },
-    });
+    }, tx);
 
     return { org, clonedRoles, membership };
   });
@@ -355,7 +355,7 @@ export async function transferOrgOwnership(
       data: { ownerId: newOwnerId },
     });
 
-    recordAudit({
+    await recordAudit({
       orgId,
       actorId: currentOwnerId,
       action: "org.transfer_ownership",
@@ -363,7 +363,7 @@ export async function transferOrgOwnership(
       targetId: orgId,
       before: { ownerId: currentOwnerId },
       after: { ownerId: newOwnerId },
-    });
+    }, tx);
 
     log.info("Org ownership transferred", {
       orgId,
@@ -397,16 +397,21 @@ export async function deleteOrg(
   if (org.name !== confirmName)
     throw new Error("Confirmation name does not match");
 
-  await prisma.organization.delete({ where: { id: orgId } });
-  log.info("Org deleted", { orgId, deletedBy: currentOwnerId });
-  recordAudit({
+  // Write audit log BEFORE deletion. Since AuditLog.orgId has onDelete: Cascade,
+  // this record will be deleted along with the org. For true persistence across
+  // org deletion, consider migrating to a global audit table without orgId FK.
+  await recordAudit({
     orgId,
     actorId: currentOwnerId,
     action: "org.delete",
     targetType: "Organization",
     targetId: orgId,
     before: { name: org.name },
+    metadata: { deletedBy: currentOwnerId, deletedAt: new Date().toISOString() },
   });
+
+  await prisma.organization.delete({ where: { id: orgId } });
+  log.info("Org deleted", { orgId, deletedBy: currentOwnerId });
 }
 
 /**

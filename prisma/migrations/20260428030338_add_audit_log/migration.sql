@@ -1,5 +1,5 @@
 -- DropIndex
-DROP INDEX "invite_pending_unique";
+DROP INDEX IF EXISTS "invite_pending_unique";
 
 -- CreateTable
 CREATE TABLE "AuditLog" (

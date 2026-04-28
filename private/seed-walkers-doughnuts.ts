@@ -14,8 +14,8 @@
  *     deleted and recreated from scratch.
  *
  * Run with:
- *   npx tsx scripts/seed-walkers-doughnuts.ts
- *   npx tsx scripts/seed-walkers-doughnuts.ts --reset
+ *   npx tsx private/seed-walkers-doughnuts.ts
+ *   npx tsx private/seed-walkers-doughnuts.ts --reset
  */
 
 import dotenv from "dotenv";
