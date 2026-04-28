@@ -108,6 +108,7 @@ model User {
   sentInvites               Invite[]       @relation("SentInvites")
   receivedInvites           Invite[]       @relation("ReceivedInvites")
   receivedNotifications     Notification[] @relation("ReceivedNotifications")
+  auditLogs                 AuditLog[]
 
   accounts      Account[]
   sessions      Session[]
@@ -182,7 +183,6 @@ model Membership {
   memberRoles         MemberRole[]
   taskAssignments     TimetableEntryAssignee[]
   templateAssignments TemplateEntryAssignee[]
-  auditLogs           AuditLog[]
 
   joinedAt      DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -531,8 +531,8 @@ model Notification {
 model AuditLog {
   id         String   @id @default(cuid())
   orgId      String   // tenant scope — always indexed
-  actorId    String?  // membershipId of who did it (null for system actions)
-  actorEmail String?  // snapshot — survives membership deletion
+  actorId    String?  // userId of who did it (null for system actions)
+  actorEmail String?  // snapshot — survives user deletion
   action     String   // e.g. "task.create", "membership.delete", "role.update"
   targetType String   // e.g. "Task", "Membership", "Role"
   targetId   String   // ID of the affected entity
@@ -542,7 +542,7 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  actor Membership?  @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actor User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([orgId, createdAt])
   @@index([orgId, targetType, targetId])

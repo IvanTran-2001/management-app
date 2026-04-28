@@ -43,8 +43,23 @@ export interface AuditLogInput {
 }
 
 /**
- * Writes an audit log entry. Never throws — if the write fails, the error is
- * captured via Sentry so the caller's mutation always succeeds.
+ * Returns a sanitized subset of audit params safe for error logging.
+ * Omits potentially large/sensitive fields (before, after, metadata).
+ */
+function sanitizeAuditParams(params: AuditLogInput) {
+  return {
+    orgId: params.orgId,
+    action: params.action,
+    targetType: params.targetType,
+    targetId: params.targetId,
+    actorEmail: params.actorEmail ? `${params.actorEmail.substring(0, 3)}***` : null,
+  };
+}
+
+/**
+ * Writes an audit log entry. When called outside a transaction, errors are
+ * swallowed and logged. When called within a transaction (client is provided),
+ * errors are rethrown to allow the transaction to roll back.
  *
  * @param params - Audit log entry data
  * @param client - Optional Prisma client or transaction handle. When provided,
@@ -71,8 +86,12 @@ export async function recordAudit(
       },
     });
   } catch (error) {
-    // NEVER throw — audit failure should not break the user's mutation
-    log.error("Audit log write failed", { error, params });
+    // If we're in a transaction, rethrow so the outer transaction can roll back
+    if (client) {
+      throw error;
+    }
+    // Otherwise, log the failure and swallow it so the user's mutation succeeds
+    log.error("Audit log write failed", { error, params: sanitizeAuditParams(params) });
   }
 }
 
