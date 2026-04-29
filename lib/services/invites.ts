@@ -281,6 +281,7 @@ export async function createMemberInvite(
 export async function acceptMemberInvite(
   inviteId: string,
   userId: string,
+  actorEmail?: string | null,
 ): Promise<ServiceResult<null>> {
   const invite = await prisma.invite.findUnique({ where: { id: inviteId } });
   if (
@@ -380,6 +381,7 @@ export async function acceptMemberInvite(
   recordAudit({
     orgId: invite.orgId,
     actorId: userId,
+    actorEmail: actorEmail ?? null,
     action: "invite.accept",
     targetType: "Invite",
     targetId: inviteId,
@@ -396,6 +398,7 @@ export async function acceptMemberInvite(
 export async function acceptBotSlotInvite(
   inviteId: string,
   userId: string,
+  actorEmail?: string | null,
 ): Promise<ServiceResult<null>> {
   const invite = await prisma.invite.findUnique({ where: { id: inviteId } });
   if (
@@ -518,6 +521,7 @@ export async function acceptBotSlotInvite(
   recordAudit({
     orgId: invite.orgId,
     actorId: userId,
+    actorEmail: actorEmail ?? null,
     action: "invite.accept",
     targetType: "Invite",
     targetId: inviteId,
