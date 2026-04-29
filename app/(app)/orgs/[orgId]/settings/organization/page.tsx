@@ -3,6 +3,7 @@ import { PermissionAction } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOrgPermissionPage } from "@/lib/authz";
 import { OrgSettingsClient } from "./settings-client";
+import { TIMEZONES } from "@/lib/timezones";
 
 export default async function OrgSettingsOrganizationPage({
   params,
@@ -52,6 +53,7 @@ export default async function OrgSettingsOrganizationPage({
       org={org}
       isParentOwner={isParentOwner}
       transferableMembers={transferableMembers}
+      timezones={TIMEZONES}
     />
   );
 }

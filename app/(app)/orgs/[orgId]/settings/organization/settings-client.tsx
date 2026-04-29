@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
+import type { TimezoneOption } from "@/lib/timezones";
 import {
   updateOrgSettings,
   transferOrgOwnership,
@@ -54,11 +55,12 @@ interface Props {
   org: OrgData;
   isParentOwner: boolean;
   transferableMembers: TransferableMember[];
+  timezones: TimezoneOption[];
 }
 
 // ─── Org Info Form ────────────────────────────────────────────────────────────
 
-function OrgInfoForm({ org, orgId }: { org: OrgData; orgId: string }) {
+function OrgInfoForm({ org, orgId, timezones }: { org: OrgData; orgId: string; timezones: TimezoneOption[] }) {
   const [address, setAddress] = useState(org.address ?? "");
   const [timezone, setTimezone] = useState(org.timezone);
   const [openTime, setOpenTime] = useState(minToTime(org.openTimeMin));
@@ -108,7 +110,7 @@ function OrgInfoForm({ org, orgId }: { org: OrgData; orgId: string }) {
           <label className="w-full sm:w-36 text-sm text-muted-foreground shrink-0">
             Timezone
           </label>
-          <TimezoneSelect value={timezone} onChange={setTimezone} />
+          <TimezoneSelect value={timezone} onChange={setTimezone} timezones={timezones} />
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4">
@@ -308,12 +310,13 @@ export function OrgSettingsClient({
   org,
   isParentOwner,
   transferableMembers,
+  timezones,
 }: Props) {
   const { orgId } = useParams<{ orgId: string }>();
 
   return (
     <div className="space-y-6 p-6 max-w-2xl mx-auto">
-      <OrgInfoForm org={org} orgId={orgId} />
+      <OrgInfoForm org={org} orgId={orgId} timezones={timezones} />
       <TransferOwnershipSection
         orgId={orgId}
         members={transferableMembers}

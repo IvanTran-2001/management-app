@@ -1,42 +1,27 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { rawTimeZones } from "@vvo/tzdb";
-
-function fmtOffset(minutes: number): string {
-  const sign = minutes >= 0 ? "+" : "-";
-  const abs = Math.abs(minutes);
-  const h = Math.floor(abs / 60)
-    .toString()
-    .padStart(2, "0");
-  const m = (abs % 60).toString().padStart(2, "0");
-  return `UTC${sign}${h}:${m}`;
-}
-
-const TIMEZONES = rawTimeZones.map((tz) => ({
-  value: tz.name,
-  label: `(${fmtOffset(tz.rawOffsetInMinutes)}) ${tz.alternativeName} — ${tz.mainCities[0] ?? tz.name}`,
-  search:
-    `${tz.name} ${tz.alternativeName} ${tz.mainCities.join(" ")} ${tz.countryName}`.toLowerCase(),
-}));
+import type { TimezoneOption } from "@/lib/timezones";
 
 export function TimezoneSelect({
   value,
   onChange,
+  timezones,
   className,
 }: {
   value: string;
   onChange: (value: string) => void;
+  timezones: TimezoneOption[];
   className?: string;
 }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selected = TIMEZONES.find((tz) => tz.value === value);
+  const selected = timezones.find((tz) => tz.value === value);
   const filtered = search
-    ? TIMEZONES.filter((tz) => tz.search.includes(search.toLowerCase()))
-    : TIMEZONES;
+    ? timezones.filter((tz) => tz.search.includes(search.toLowerCase()))
+    : timezones;
 
   useEffect(() => {
     if (!open) return;
