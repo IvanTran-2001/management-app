@@ -140,7 +140,7 @@ pnpm seed
 Authentication is handled by **Auth.js v5 (NextAuth)** with **Google OAuth** as the provider.
 
 - Route: `GET|POST /api/auth/[...nextauth]` (handled automatically by Auth.js)
-- Session strategy: **JWT** (tokens signed with `AUTH_SECRET`, stored in a cookie — no DB reads on every request)
+- Session strategy: **JWT** (tokens signed with `AUTH_SECRET`, stored in a cookie — no DB reads for session lookup itself; authorization checks like `requireOrgPermission` still query the DB to verify membership on each request)
 - The Prisma adapter stores `User` and `Account` records in Postgres for OAuth account linking
 - The signed-in user's database `id` is mapped from `token.sub` into `session.user.id` so API routes and server actions can look up `Membership` records for authorization
 
@@ -289,7 +289,7 @@ app/
     timetable-entries.ts
     franchisee.ts
     roles.ts
-  api/                    # REST API route handlers (external/mobile clients)
+  api/                    # REST API route handlers (session-authenticated)
     auth/[...nextauth]/
     orgs/
       route.ts
@@ -421,7 +421,7 @@ The app uses two mutation paths depending on the caller:
 | Path               | Used by                                | Location       |
 | ------------------ | -------------------------------------- | -------------- |
 | **Server Actions** | Web UI forms and buttons               | `app/actions/` |
-| **API Routes**     | External clients (mobile, third-party) | `app/api/`     |
+| **API Routes**     | Session-authenticated HTTP endpoints   | `app/api/`     |
 
 Both are thin wrappers — they handle auth, validate input, then delegate to `lib/services/`. The service layer holds all database logic and is shared between both paths.
 
