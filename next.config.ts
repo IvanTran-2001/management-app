@@ -5,6 +5,9 @@ import { withSentryConfig } from "@sentry/nextjs";
  * Remote image patterns: allows `next/image` to serve profile pictures from
  * Google's CDN (`lh3.googleusercontent.com`), which is the source used by
  * Google OAuth avatars.
+ *
+ * Build: `next build --webpack` is intentional — @sentry/webpack-plugin
+ * requires Webpack for source map uploads and does not support Turbopack.
  */
 import type { NextConfig } from "next";
 
