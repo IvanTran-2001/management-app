@@ -13,11 +13,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { PermissionAction } from "@prisma/client";
+import { PermissionAction, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOrgPermissionAction } from "@/lib/authz";
 import {
   createConversionSet,
+  createConversionSetWithDefault,
   deleteConversionSet,
   renameConversionSet,
   createToolItem,
@@ -30,6 +31,19 @@ import {
   upsertTemplateEntry,
   deleteTemplateEntry,
 } from "@/lib/services/tools";
+
+// ─── Error Handling Helpers ──────────────────────────────────────────────────
+
+/**
+ * Maps Prisma errors to user-friendly messages.
+ * Returns null if the error should be handled with a generic message.
+ */
+function mapPrismaError(err: unknown, errorMessages: Record<string, string>): string | null {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    return errorMessages[err.code] ?? null;
+  }
+  return null;
+}
 
 // ─── ConversionSet ────────────────────────────────────────────────────────────
 
@@ -45,15 +59,14 @@ export async function createConversionSetAction(orgId: string, name: string) {
   if (!trimmed) return { ok: false as const, error: "Name is required." };
 
   try {
-    const set = await createConversionSet(orgId, trimmed);
-    await createConversionTemplate(set.id, "Default");
+    await createConversionSetWithDefault(orgId, trimmed);
     revalidatePath(`/orgs/${orgId}/tools/conversion`);
     return { ok: true as const };
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      return { ok: false as const, error: "A set with that name already exists." };
-    }
-    return { ok: false as const, error: "Failed to create set." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2002: "A set with that name already exists.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to create set." };
   }
 }
 
@@ -79,14 +92,12 @@ export async function renameConversionSetAction(orgId: string, id: string, name:
     await renameConversionSet(orgId, id, trimmed);
     revalidatePath(`/orgs/${orgId}/tools/conversion`);
     return { ok: true as const };
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      return { ok: false as const, error: "A set with that name already exists." };
-    }
-    if (err?.code === "P2025") {
-      return { ok: false as const, error: "Set not found." };
-    }
-    return { ok: false as const, error: "Failed to rename set." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2002: "A set with that name already exists.",
+      P2025: "Set not found.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to rename set." };
   }
 }
 
@@ -114,11 +125,11 @@ export async function createToolItemAction(
     const item = await createToolItem(orgId, trimmedName, trimmedUnit);
     revalidatePath(`/orgs/${orgId}/tools/conversion`);
     return { ok: true as const, item };
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      return { ok: false as const, error: "An item with that name already exists." };
-    }
-    return { ok: false as const, error: "Failed to create item." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2002: "An item with that name already exists.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to create item." };
   }
 }
 
@@ -141,14 +152,12 @@ export async function updateToolItemAction(
     await updateToolItem(orgId, id, trimmedName, trimmedUnit);
     revalidatePath(`/orgs/${orgId}/tools/conversion`);
     return { ok: true as const };
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      return { ok: false as const, error: "An item with that name already exists." };
-    }
-    if (err?.code === "P2025") {
-      return { ok: false as const, error: "Item not found." };
-    }
-    return { ok: false as const, error: "Failed to update item." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2002: "An item with that name already exists.",
+      P2025: "Item not found.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to update item." };
   }
 }
 
@@ -161,14 +170,12 @@ export async function deleteToolItemAction(orgId: string, id: string) {
     await deleteToolItem(orgId, id);
     revalidatePath(`/orgs/${orgId}/tools/conversion`);
     return { ok: true as const };
-  } catch (err: any) {
-    if (err?.code === "P2003") {
-      return { ok: false as const, error: "Cannot delete an item that is used in a conversion rate." };
-    }
-    if (err?.code === "P2025") {
-      return { ok: false as const, error: "Item not found." };
-    }
-    return { ok: false as const, error: "Failed to delete item." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2003: "Cannot delete an item that is used in a conversion rate.",
+      P2025: "Item not found.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to delete item." };
   }
 }
 
@@ -202,14 +209,12 @@ export async function createConversionRateAction(
     const rate = await createConversionRate(orgId, setId, fromItemId, toItemId, fromQty, toQty);
     revalidatePath(`/orgs/${orgId}/tools/conversion/${setId}`);
     return { ok: true as const, rate };
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      return { ok: false as const, error: "Rate already exists for this item pair." };
-    }
-    if (err?.code === "P2003") {
-      return { ok: false as const, error: "Invalid item or set reference." };
-    }
-    return { ok: false as const, error: "Failed to create rate." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2002: "Rate already exists for this item pair.",
+      P2003: "Invalid item or set reference.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to create rate." };
   }
 }
 
@@ -222,11 +227,11 @@ export async function deleteConversionRateAction(orgId: string, setId: string, r
     await deleteConversionRate(orgId, rateId);
     revalidatePath(`/orgs/${orgId}/tools/conversion/${setId}`);
     return { ok: true as const };
-  } catch (err: any) {
-    if (err?.code === "P2025") {
-      return { ok: false as const, error: "Rate not found." };
-    }
-    return { ok: false as const, error: "Failed to delete rate." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2025: "Rate not found.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to delete rate." };
   }
 }
 
@@ -253,14 +258,12 @@ export async function createConversionTemplateAction(
     const template = await createConversionTemplate(setId, trimmed, orgId);
     revalidatePath(`/orgs/${orgId}/tools/conversion/${setId}`);
     return { ok: true as const, template };
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      return { ok: false as const, error: "A template with that name already exists." };
-    }
-    if (err?.code === "P2003") {
-      return { ok: false as const, error: "Set not found." };
-    }
-    return { ok: false as const, error: "Failed to create template." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2002: "A template with that name already exists.",
+      P2003: "Set not found.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to create template." };
   }
 }
 
@@ -289,11 +292,11 @@ export async function deleteConversionTemplateAction(
     await deleteConversionTemplate(orgId, templateId);
     revalidatePath(`/orgs/${orgId}/tools/conversion/${setId}`);
     return { ok: true as const };
-  } catch (err: any) {
-    if (err?.code === "P2025") {
-      return { ok: false as const, error: "Template not found." };
-    }
-    return { ok: false as const, error: "Failed to delete template." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2025: "Template not found.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to delete template." };
   }
 }
 
@@ -316,14 +319,12 @@ export async function upsertTemplateEntryAction(
   try {
     await upsertTemplateEntry(orgId, templateId, itemId, quantity, pinnedOutput);
     return { ok: true as const };
-  } catch (err: any) {
-    if (err?.code === "P2003") {
-      return { ok: false as const, error: "Invalid template or item reference." };
-    }
-    if (err?.code === "P2025") {
-      return { ok: false as const, error: "Template not found." };
-    }
-    return { ok: false as const, error: "Failed to update entry." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2003: "Invalid template or item reference.",
+      P2025: "Template not found.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to update entry." };
   }
 }
 
@@ -342,10 +343,10 @@ export async function removeTemplateEntryAction(
   try {
     await deleteTemplateEntry(orgId, templateId, itemId);
     return { ok: true as const };
-  } catch (err: any) {
-    if (err?.code === "P2025") {
-      return { ok: false as const, error: "Entry not found." };
-    }
-    return { ok: false as const, error: "Failed to delete entry." };
+  } catch (err: unknown) {
+    const mappedError = mapPrismaError(err, {
+      P2025: "Entry not found.",
+    });
+    return { ok: false as const, error: mappedError ?? "Failed to delete entry." };
   }
 }

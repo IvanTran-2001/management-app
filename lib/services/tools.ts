@@ -40,6 +40,20 @@ export async function createConversionSet(orgId: string, name: string) {
   });
 }
 
+/** Creates a new conversion set with a Default template atomically. */
+export async function createConversionSetWithDefault(orgId: string, name: string) {
+  return prisma.$transaction(async (tx) => {
+    const set = await tx.conversionSet.create({
+      data: { orgId, name },
+      select: { id: true, name: true },
+    });
+    await tx.conversionTemplate.create({
+      data: { setId: set.id, name: "Default" },
+    });
+    return set;
+  });
+}
+
 /** Deletes a conversion set. Cascades to all its rates and templates via the DB schema. */
 export async function deleteConversionSet(orgId: string, id: string) {
   await prisma.conversionSet.deleteMany({ where: { id, orgId } });
@@ -237,9 +251,9 @@ export async function deleteConversionTemplate(
  *     1 = from only, 2 = to only, 3 = both from and to
  * - `quantity` is the saved input value for from-side rows; null when to-side only.
  */
-export async function getTemplateEntries(templateId: string) {
+export async function getTemplateEntries(orgId: string, templateId: string) {
   const rows = await prisma.conversionTemplateEntry.findMany({
-    where: { templateId },
+    where: { template: { set: { orgId } }, templateId },
     select: { itemId: true, quantity: true, pinnedOutput: true },
   });
   return rows.map((r) => ({ ...r, pinnedOutput: r.pinnedOutput ?? 0 }));
