@@ -19,7 +19,7 @@ import {
  * Includes the total number of entries on each template via `_count`.
  */
 export async function getTimetableTemplates(orgId: string) {
-  return prisma.template.findMany({
+  return prisma.timetableTemplate.findMany({
     where: { orgId },
     include: {
       _count: { select: { entries: true } },
@@ -34,7 +34,7 @@ export async function getTimetableTemplates(orgId: string) {
  * Returns `null` if no matching template exists in the org.
  */
 export async function getTimetableTemplate(orgId: string, templateId: string) {
-  return prisma.template.findFirst({
+  return prisma.timetableTemplate.findFirst({
     where: { id: templateId, orgId },
     include: {
       entries: {
@@ -68,7 +68,7 @@ export async function createTemplate(
   cycleLengthDays: number,
   actorId?: string | null,
 ): Promise<ServiceResult<{ id: string }>> {
-  const template = await prisma.template.create({
+  const template = await prisma.timetableTemplate.create({
     data: { orgId, name, cycleLengthDays },
     select: { id: true },
   });
@@ -104,7 +104,7 @@ export async function addTemplateInstance(
       where: { id: taskId, orgId },
       select: { id: true, durationMin: true },
     }),
-    prisma.template.findFirst({
+    prisma.timetableTemplate.findFirst({
       where: { id: templateId, orgId },
       select: { id: true, cycleLengthDays: true },
     }),
@@ -124,7 +124,7 @@ export async function addTemplateInstance(
   }
 
   const endTimeMin = Math.min(startTimeMin + task.durationMin, 1440);
-  await prisma.templateEntry.create({
+  await prisma.timetableTemplateEntry.create({
     data: { taskId, templateId, dayIndex, startTimeMin, endTimeMin },
   });
   log.info("Template instance added", { orgId, templateId, taskId });
@@ -138,13 +138,13 @@ export async function removeTemplateInstance(
   orgId: string,
   instanceId: string,
 ): Promise<ServiceResult<null>> {
-  const entry = await prisma.templateEntry.findFirst({
+  const entry = await prisma.timetableTemplateEntry.findFirst({
     where: { id: instanceId, template: { orgId } },
     select: { id: true },
   });
   if (!entry) return { ok: false, error: "Not found", code: "NOT_FOUND" };
 
-  await prisma.templateEntry.delete({ where: { id: instanceId } });
+  await prisma.timetableTemplateEntry.delete({ where: { id: instanceId } });
   log.info("Template instance removed", { orgId, instanceId });
   return { ok: true, data: null };
 }
@@ -157,7 +157,7 @@ export async function updateTemplateInstance(
   instanceId: string,
   update: { dayIndex?: number; startTimeMin?: number },
 ): Promise<ServiceResult<null>> {
-  const entry = await prisma.templateEntry.findFirst({
+  const entry = await prisma.timetableTemplateEntry.findFirst({
     where: { id: instanceId, template: { orgId } },
     select: {
       id: true,
@@ -169,7 +169,7 @@ export async function updateTemplateInstance(
   if (!entry) return { ok: false, error: "Not found", code: "NOT_FOUND" };
 
   if (update.dayIndex !== undefined) {
-    const template = await prisma.template.findFirst({
+    const template = await prisma.timetableTemplate.findFirst({
       where: { id: entry.templateId, orgId },
       select: { cycleLengthDays: true },
     });
@@ -195,7 +195,7 @@ export async function updateTemplateInstance(
     return { ok: false, error: "Invalid time", code: "INVALID" };
   }
 
-  await prisma.templateEntry.update({
+  await prisma.timetableTemplateEntry.update({
     where: { id: instanceId },
     data: {
       ...(update.dayIndex !== undefined && { dayIndex: update.dayIndex }),
@@ -229,7 +229,7 @@ export async function updateTemplateDays(
     return { ok: false, error: "Invalid cycle length", code: "INVALID" };
   }
 
-  const stranded = await prisma.templateEntry.count({
+  const stranded = await prisma.timetableTemplateEntry.count({
     where: {
       templateId,
       template: { orgId },
@@ -244,7 +244,7 @@ export async function updateTemplateDays(
     };
   }
 
-  const updated = await prisma.template.updateMany({
+  const updated = await prisma.timetableTemplate.updateMany({
     where: { id: templateId, orgId },
     data: { cycleLengthDays },
   });
@@ -268,7 +268,7 @@ export async function addTemplateInstanceAssignee(
   membershipId: string,
 ): Promise<ServiceResult<null>> {
   const [entry, membership] = await Promise.all([
-    prisma.templateEntry.findFirst({
+    prisma.timetableTemplateEntry.findFirst({
       where: { id: instanceId, template: { orgId } },
       select: { id: true },
     }),
@@ -282,7 +282,7 @@ export async function addTemplateInstanceAssignee(
   if (!membership)
     return { ok: false, error: "Membership not found", code: "NOT_FOUND" };
 
-  await prisma.templateEntryAssignee.upsert({
+  await prisma.timetableTemplateEntryAssignee.upsert({
     where: {
       templateEntryId_membershipId: {
         templateEntryId: instanceId,
@@ -308,7 +308,7 @@ export async function removeTemplateInstanceAssignee(
   instanceId: string,
   membershipId: string,
 ): Promise<ServiceResult<null>> {
-  const assignee = await prisma.templateEntryAssignee.findFirst({
+  const assignee = await prisma.timetableTemplateEntryAssignee.findFirst({
     where: {
       templateEntryId: instanceId,
       membershipId,
@@ -318,7 +318,7 @@ export async function removeTemplateInstanceAssignee(
   });
   if (!assignee) return { ok: false, error: "Not found", code: "NOT_FOUND" };
 
-  await prisma.templateEntryAssignee.delete({ where: { id: assignee.id } });
+  await prisma.timetableTemplateEntryAssignee.delete({ where: { id: assignee.id } });
   log.info("Template instance assignee removed", {
     orgId,
     instanceId,
@@ -399,7 +399,7 @@ export async function applyTemplate(
       where: { id: orgId },
       select: { timezone: true },
     }),
-    prisma.template.findFirst({
+    prisma.timetableTemplate.findFirst({
       where: { id: templateId, orgId },
       include: {
         entries: {
@@ -532,13 +532,13 @@ export async function renameTemplate(
   if (!trimmed)
     return { ok: false, error: "Name is required", code: "INVALID" };
 
-  const existing = await prisma.template.findFirst({
+  const existing = await prisma.timetableTemplate.findFirst({
     where: { id: templateId, orgId },
     select: { name: true },
   });
 
   try {
-    const updated = await prisma.template.updateMany({
+    const updated = await prisma.timetableTemplate.updateMany({
       where: { id: templateId, orgId },
       data: { name: trimmed },
     });
@@ -581,7 +581,7 @@ export async function duplicateTemplate(
   templateId: string,
   actorId?: string | null,
 ): Promise<ServiceResult<{ id: string }>> {
-  const template = await prisma.template.findFirst({
+  const template = await prisma.timetableTemplate.findFirst({
     where: { id: templateId, orgId },
     include: {
       entries: {
@@ -601,7 +601,7 @@ export async function duplicateTemplate(
       attempt === 0 ? baseName : `${baseName} (${attempt + 1})`;
 
     try {
-      const copy = await prisma.template.create({
+      const copy = await prisma.timetableTemplate.create({
         data: {
           orgId,
           name: candidateName,
@@ -674,11 +674,11 @@ export async function deleteTemplate(
   templateId: string,
   actorId?: string | null,
 ): Promise<ServiceResult<null>> {
-  const existing = await prisma.template.findFirst({
+  const existing = await prisma.timetableTemplate.findFirst({
     where: { id: templateId, orgId },
     select: { name: true, cycleLengthDays: true },
   });
-  const deleted = await prisma.template.deleteMany({
+  const deleted = await prisma.timetableTemplate.deleteMany({
     where: { id: templateId, orgId },
   });
   if (deleted.count === 0)

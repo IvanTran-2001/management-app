@@ -771,13 +771,13 @@ async function main() {
   console.log("→ Creating templates...");
 
   const [tplWeek1, tplWeekend, tplCleaning] = await Promise.all([
-    prisma.template.create({
+    prisma.timetableTemplate.create({
       data: { orgId: org.id, name: "Weekday Rotation", cycleLengthDays: 5 },
     }),
-    prisma.template.create({
+    prisma.timetableTemplate.create({
       data: { orgId: org.id, name: "Weekend Shift", cycleLengthDays: 2 },
     }),
-    prisma.template.create({
+    prisma.timetableTemplate.create({
       data: {
         orgId: org.id,
         name: "Weekly Cleaning Schedule",
@@ -786,7 +786,7 @@ async function main() {
     }),
   ]);
 
-  await prisma.templateEntry.createMany({
+  await prisma.timetableTemplateEntry.createMany({
     data: [
       // Weekday Rotation (5-day cycle)
       {

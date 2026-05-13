@@ -69,10 +69,10 @@ function makeDateUtils(tz: string) {
 
 async function cleanDatabase() {
   await prisma.timetableEntryAssignee.deleteMany();
-  await prisma.templateEntryAssignee.deleteMany();
+  await prisma.timetableTemplateEntryAssignee.deleteMany();
   await prisma.timetableEntry.deleteMany();
-  await prisma.templateEntry.deleteMany();
-  await prisma.template.deleteMany();
+  await prisma.timetableTemplateEntry.deleteMany();
+  await prisma.timetableTemplate.deleteMany();
   await prisma.taskEligibility.deleteMany();
   await prisma.task.deleteMany();
   await prisma.permission.deleteMany();
@@ -798,13 +798,13 @@ async function seedOrg1(users: Users) {
   console.log("→ Creating templates...");
 
   const [tplWeek1, tplWeekend, tplCleaning] = await Promise.all([
-    prisma.template.create({
+    prisma.timetableTemplate.create({
       data: { orgId: org.id, name: "Weekday Rotation", cycleLengthDays: 5 },
     }),
-    prisma.template.create({
+    prisma.timetableTemplate.create({
       data: { orgId: org.id, name: "Weekend Shift", cycleLengthDays: 2 },
     }),
-    prisma.template.create({
+    prisma.timetableTemplate.create({
       data: {
         orgId: org.id,
         name: "Weekly Cleaning Schedule",
@@ -813,7 +813,7 @@ async function seedOrg1(users: Users) {
     }),
   ]);
 
-  await prisma.templateEntry.createMany({
+  await prisma.timetableTemplateEntry.createMany({
     data: [
       // Weekday Rotation (5-day cycle)
       {
@@ -1965,11 +1965,11 @@ async function seedOrg2(users: Users) {
     skipDuplicates: true,
   });
 
-  const template = await prisma.template.create({
+  const template = await prisma.timetableTemplate.create({
     data: { orgId: org.id, name: "Standard Week", cycleLengthDays: 7 },
   });
 
-  await prisma.templateEntry.createMany({
+  await prisma.timetableTemplateEntry.createMany({
     data: [
       {
         templateId: template.id,
@@ -2723,11 +2723,11 @@ async function seedOrg3(users: Users) {
     skipDuplicates: true,
   });
 
-  const template = await prisma.template.create({
+  const template = await prisma.timetableTemplate.create({
     data: { orgId: org.id, name: "5-Day Rotation", cycleLengthDays: 5 },
   });
 
-  await prisma.templateEntry.createMany({
+  await prisma.timetableTemplateEntry.createMany({
     data: [
       {
         templateId: template.id,

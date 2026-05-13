@@ -501,6 +501,9 @@ model RosterEntry {
   weekStart    DateTime // Always Monday 00:00:00 UTC
   dayIndex     Int      // 0=Mon … 6=Sun
 
+  shiftStartMin Int?   // null = unspecified / all day
+  shiftEndMin   Int?   // 0-1440
+
   note         String?
 
   createdAt    DateTime @default(now())
@@ -519,6 +522,8 @@ model RosterDayConfig {
 
   dayIndex        Int    // 0=Mon … 6=Sun
   recommendedSize Int    @default(1)
+  openTimeMin     Int?   // null = inherit org default
+  closeTimeMin    Int?   // 0-1440
 
   @@unique([orgId, dayIndex])
   @@index([orgId])

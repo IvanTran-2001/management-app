@@ -49,7 +49,7 @@ describe("createTemplate", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const template = await prisma.template.findUnique({
+    const template = await prisma.timetableTemplate.findUnique({
       where: { id: result.data.id },
     });
     expect(template).not.toBeNull();
@@ -81,7 +81,7 @@ describe("addTemplateInstance", () => {
 
     expect(result.ok).toBe(true);
 
-    const entry = await prisma.templateEntry.findFirst({
+    const entry = await prisma.timetableTemplateEntry.findFirst({
       where: { templateId, taskId: task.id, dayIndex: 0 },
     });
     expect(entry).not.toBeNull();
@@ -138,14 +138,14 @@ describe("removeTemplateInstance", () => {
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 0, 360);
-    const entry = await prisma.templateEntry.findFirstOrThrow({
+    const entry = await prisma.timetableTemplateEntry.findFirstOrThrow({
       where: { templateId, taskId: task.id },
     });
 
     const result = await removeTemplateInstance(org.id, entry.id);
 
     expect(result.ok).toBe(true);
-    const gone = await prisma.templateEntry.findUnique({
+    const gone = await prisma.timetableTemplateEntry.findUnique({
       where: { id: entry.id },
     });
     expect(gone).toBeNull();
@@ -175,7 +175,7 @@ describe("updateTemplateInstance", () => {
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 0, 360);
-    const entry = await prisma.templateEntry.findFirstOrThrow({
+    const entry = await prisma.timetableTemplateEntry.findFirstOrThrow({
       where: { templateId, taskId: task.id },
     });
 
@@ -185,7 +185,7 @@ describe("updateTemplateInstance", () => {
 
     expect(result.ok).toBe(true);
 
-    const updated = await prisma.templateEntry.findUnique({
+    const updated = await prisma.timetableTemplateEntry.findUnique({
       where: { id: entry.id },
     });
     expect(updated?.dayIndex).toBe(3);
@@ -199,7 +199,7 @@ describe("updateTemplateInstance", () => {
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 0, 360);
-    const entry = await prisma.templateEntry.findFirstOrThrow({
+    const entry = await prisma.timetableTemplateEntry.findFirstOrThrow({
       where: { templateId, taskId: task.id },
     });
 
@@ -226,7 +226,7 @@ describe("updateTemplateDays", () => {
 
     expect(result.ok).toBe(true);
 
-    const updated = await prisma.template.findUnique({
+    const updated = await prisma.timetableTemplate.findUnique({
       where: { id: templateId },
     });
     expect(updated?.cycleLengthDays).toBe(14);
@@ -266,7 +266,7 @@ describe("addTemplateInstanceAssignee / removeTemplateInstanceAssignee", () => {
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 0, 360);
-    const entry = await prisma.templateEntry.findFirstOrThrow({
+    const entry = await prisma.timetableTemplateEntry.findFirstOrThrow({
       where: { templateId, taskId: task.id },
     });
 
@@ -278,7 +278,7 @@ describe("addTemplateInstanceAssignee / removeTemplateInstanceAssignee", () => {
     );
     expect(addResult.ok).toBe(true);
 
-    const link = await prisma.templateEntryAssignee.findFirst({
+    const link = await prisma.timetableTemplateEntryAssignee.findFirst({
       where: { templateEntryId: entry.id, membershipId: member.id },
     });
     expect(link).not.toBeNull();
@@ -291,7 +291,7 @@ describe("addTemplateInstanceAssignee / removeTemplateInstanceAssignee", () => {
     );
     expect(removeResult.ok).toBe(true);
 
-    const gone = await prisma.templateEntryAssignee.findFirst({
+    const gone = await prisma.timetableTemplateEntryAssignee.findFirst({
       where: { templateEntryId: entry.id, membershipId: member.id },
     });
     expect(gone).toBeNull();
@@ -311,7 +311,7 @@ describe("addTemplateInstanceAssignee / removeTemplateInstanceAssignee", () => {
     const { id: templateId } = await makeTemplate(org.id, 7);
 
     await addTemplateInstance(org.id, templateId, task.id, 0, 360);
-    const entry = await prisma.templateEntry.findFirstOrThrow({
+    const entry = await prisma.timetableTemplateEntry.findFirstOrThrow({
       where: { templateId, taskId: task.id },
     });
 
@@ -341,7 +341,7 @@ describe("renameTemplate", () => {
 
     expect(result.ok).toBe(true);
 
-    const updated = await prisma.template.findUnique({
+    const updated = await prisma.timetableTemplate.findUnique({
       where: { id: templateId },
     });
     expect(updated?.name).toBe(newName);
@@ -377,7 +377,7 @@ describe("duplicateTemplate", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const copy = await prisma.template.findUnique({
+    const copy = await prisma.timetableTemplate.findUnique({
       where: { id: result.data.id },
       include: { entries: true },
     });
@@ -417,12 +417,12 @@ describe("deleteTemplate", () => {
 
     expect(result.ok).toBe(true);
 
-    const gone = await prisma.template.findUnique({
+    const gone = await prisma.timetableTemplate.findUnique({
       where: { id: templateId },
     });
     expect(gone).toBeNull();
 
-    const entries = await prisma.templateEntry.findMany({
+    const entries = await prisma.timetableTemplateEntry.findMany({
       where: { templateId },
     });
     expect(entries).toHaveLength(0);

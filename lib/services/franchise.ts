@@ -160,7 +160,7 @@ export async function cloneTemplatesFromParent(
   childOrgId: string,
   taskIdMap: Map<string, string>,
 ) {
-  const parentTemplates = await tx.template.findMany({
+  const parentTemplates = await tx.timetableTemplate.findMany({
     where: { orgId: parentOrgId },
     include: {
       entries: {
@@ -178,7 +178,7 @@ export async function cloneTemplatesFromParent(
 
   const clonedTemplates = await Promise.all(
     parentTemplates.map((template) =>
-      tx.template.create({
+      tx.timetableTemplate.create({
         data: {
           orgId: childOrgId,
           name: template.name,

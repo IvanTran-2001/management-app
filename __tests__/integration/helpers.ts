@@ -104,7 +104,7 @@ export async function cleanupTempUser(userId: string) {
     await prisma.timetableEntryAssignee.deleteMany({
       where: { membershipId: { in: membershipIds } },
     });
-    await prisma.templateEntryAssignee.deleteMany({
+    await prisma.timetableTemplateEntryAssignee.deleteMany({
       where: { membershipId: { in: membershipIds } },
     });
     await prisma.memberRole.deleteMany({

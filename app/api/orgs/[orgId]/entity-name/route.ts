@@ -47,7 +47,7 @@ export async function GET(
       });
       name = row?.name ?? null;
     } else if (type === "templates") {
-      const row = await prisma.template.findFirst({
+      const row = await prisma.timetableTemplate.findFirst({
         where: { id, orgId },
         select: { name: true },
       });
