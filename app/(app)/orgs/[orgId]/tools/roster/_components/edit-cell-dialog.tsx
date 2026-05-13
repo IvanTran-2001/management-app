@@ -3,62 +3,99 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Minus } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { setRosterCellMembersAction } from "@/app/actions/roster";
-import type { RosterEntryRow, OrgMember } from "./roster-board";
-import { DAY_LABELS } from "./roster-board-constants";
-
-function formatWeekDate(weekStart: Date, dayIndex: number): string {
-  const d = new Date(weekStart);
-  d.setUTCDate(d.getUTCDate() + dayIndex);
-  return `${d.getUTCDate()}/${d.getUTCMonth() + 1}/${d.getUTCFullYear()}`;
-}
+import { useActionSidebar } from "@/components/layout/action-sidebar-context";
+import type { RosterEntryRow, OrgMember, DayConfigRow } from "./roster-board";
 
 function memberDisplayName(m: OrgMember): string {
   return m.botName ?? m.user?.name ?? "Unknown";
 }
 
-interface EditCellDialogProps {
+function minToTime(min: number | null): string {
+  if (min === null) return "";
+  const h = Math.floor(min / 60).toString().padStart(2, "0");
+  const m = (min % 60).toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function timeToMin(time: string): number | null {
+  if (!time) return null;
+  const [h, m] = time.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+function hoursWorked(startMin: number | null, endMin: number | null): string {
+  if (startMin === null || endMin === null) return "";
+  const diff = endMin - startMin;
+  if (diff <= 0) return "";
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+type MemberShift = {
+  membershipId: string;
+  startTime: string; // "HH:MM"
+  endTime: string;
+};
+
+interface EditCellPanelProps {
   orgId: string;
   weekStart: Date;
   dayIndex: number;
   members: OrgMember[];
   currentEntries: RosterEntryRow[];
-  onClose: () => void;
+  dayConfig: DayConfigRow | null;
+  orgOpenTimeMin: number | null;
+  orgCloseTimeMin: number | null;
 }
 
-export function EditCellDialog({
+export function EditCellPanel({
   orgId,
   weekStart,
   dayIndex,
   members,
   currentEntries,
-  onClose,
-}: EditCellDialogProps) {
-  const [selected, setSelected] = useState<string[]>(
-    currentEntries.map((e) => e.membershipId),
+  dayConfig,
+  orgOpenTimeMin,
+  orgCloseTimeMin,
+}: EditCellPanelProps) {
+  const { close } = useActionSidebar();
+
+  // Default shift = day config times, falling back to org times
+  const defaultStart = minToTime(dayConfig?.openTimeMin ?? orgOpenTimeMin);
+  const defaultEnd = minToTime(dayConfig?.closeTimeMin ?? orgCloseTimeMin);
+
+  const [shifts, setShifts] = useState<MemberShift[]>(
+    currentEntries.map((e) => ({
+      membershipId: e.membershipId,
+      startTime: minToTime(e.shiftStartMin) || defaultStart,
+      endTime: minToTime(e.shiftEndMin) || defaultEnd,
+    })),
   );
   const [isPending, startTransition] = useTransition();
 
-  const dayLabel = DAY_LABELS[dayIndex];
-  const dateLabel = formatWeekDate(weekStart, dayIndex);
-  const title = `Edit ${dayLabel} — ${dateLabel}`;
-
-  const available = members.filter((m) => !selected.includes(m.id));
+  const selectedIds = shifts.map((s) => s.membershipId);
+  const available = members.filter((m) => !selectedIds.includes(m.id));
 
   function addMember(id: string) {
-    setSelected((prev) => [...prev, id]);
+    setShifts((prev) => [
+      ...prev,
+      { membershipId: id, startTime: defaultStart, endTime: defaultEnd },
+    ]);
   }
 
   function removeMember(id: string) {
-    setSelected((prev) => prev.filter((s) => s !== id));
+    setShifts((prev) => prev.filter((s) => s.membershipId !== id));
+  }
+
+  function updateShift(id: string, field: "startTime" | "endTime", value: string) {
+    setShifts((prev) =>
+      prev.map((s) => (s.membershipId === id ? { ...s, [field]: value } : s)),
+    );
   }
 
   function handleSave() {
@@ -67,10 +104,14 @@ export function EditCellDialog({
         orgId,
         weekStart,
         dayIndex,
-        selected,
+        shifts.map((s) => ({
+          membershipId: s.membershipId,
+          shiftStartMin: timeToMin(s.startTime),
+          shiftEndMin: timeToMin(s.endTime),
+        })),
       );
       if (result.ok) {
-        onClose();
+        close();
       } else {
         toast.error(result.error ?? "Failed to save");
       }
@@ -78,12 +119,9 @@ export function EditCellDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="text-sm">{title}</DialogTitle>
-        </DialogHeader>
-
+    <div className="flex flex-col h-full">
+      {/* Scrollable body */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 p-4">
         {/* Member picker */}
         {available.length > 0 && (
           <select
@@ -105,44 +143,66 @@ export function EditCellDialog({
           </select>
         )}
 
-        {/* Selected members list */}
-        <div className="flex flex-col gap-1 min-h-[60px]">
-          {selected.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">
-              No members rostered.
-            </p>
-          ) : (
-            selected.map((id) => {
-              const member = members.find((m) => m.id === id);
-              if (!member) return null;
-              return (
-                <div
-                  key={id}
-                  className="flex items-center justify-between px-2 py-1 rounded bg-muted/50 text-sm"
-                >
-                  <span>{memberDisplayName(member)}</span>
+        {/* Rostered members with shift times */}
+        {shifts.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-2">
+            No members rostered.
+          </p>
+        ) : (
+          shifts.map((s) => {
+            const member = members.find((m) => m.id === s.membershipId);
+            if (!member) return null;
+            const worked = hoursWorked(timeToMin(s.startTime), timeToMin(s.endTime));
+            return (
+              <div key={s.membershipId} className="flex flex-col gap-2 rounded-md border border-border p-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium truncate pr-2">{memberDisplayName(member)}</span>
                   <button
                     type="button"
-                    onClick={() => removeMember(id)}
-                    className="text-muted-foreground hover:text-destructive transition-colors"
+                    onClick={() => removeMember(s.membershipId)}
+                    className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </button>
                 </div>
-              );
-            })
-          )}
-        </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Start</label>
+                    <Input
+                      type="time"
+                      value={s.startTime}
+                      onChange={(e) => updateShift(s.membershipId, "startTime", e.target.value)}
+                      className="h-7 text-xs px-1.5"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wide">End</label>
+                    <Input
+                      type="time"
+                      value={s.endTime}
+                      onChange={(e) => updateShift(s.membershipId, "endTime", e.target.value)}
+                      className="h-7 text-xs px-1.5"
+                    />
+                  </div>
+                </div>
+                {worked && (
+                  <p className="text-xs text-muted-foreground text-right">{worked}</p>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
 
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={isPending}>
-            {isPending ? "Saving…" : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {/* Sticky footer */}
+      <div className="shrink-0 flex gap-2 justify-end p-4 border-t border-border">
+        <Button variant="outline" size="sm" onClick={close}>
+          Cancel
+        </Button>
+        <Button size="sm" onClick={handleSave} disabled={isPending}>
+          {isPending ? "Saving…" : "Save"}
+        </Button>
+      </div>
+    </div>
   );
 }

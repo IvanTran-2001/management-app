@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
 
 export function ItemListSidebarContent({ orgId }: { orgId: string }) {
   return (
@@ -14,13 +14,13 @@ export function ItemListSidebarContent({ orgId }: { orgId: string }) {
       </div>
 
       {/* Back */}
-      <Link
-        href={`/orgs/${orgId}/tools`}
-        className="flex items-center gap-2 h-12 px-4 text-sm border-b border-border text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors shrink-0"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Link>
+      <SidebarNavItem
+        title="Back"
+        url={`/orgs/${orgId}/tools`}
+        icon={ArrowLeft}
+        isActive={false}
+        variant="page"
+      />
     </div>
   );
 }

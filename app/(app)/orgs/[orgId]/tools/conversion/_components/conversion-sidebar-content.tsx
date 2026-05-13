@@ -8,8 +8,8 @@
 "use client";
 
 import { useRef } from "react";
-import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
+import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
 import { Button } from "@/components/ui/button";
 import { useActionSidebar } from "@/components/layout/action-sidebar-context";
 import { AddSetForm } from "./add-set-form";
@@ -38,13 +38,13 @@ export function ConversionSidebarContent({ orgId }: { orgId: string }) {
       </div>
 
       {/* Back */}
-      <Link
-        href={`/orgs/${orgId}/tools`}
-        className="flex items-center gap-2 h-12 px-4 text-sm border-b border-border text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors shrink-0"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Link>
+      <SidebarNavItem
+        title="Back"
+        url={`/orgs/${orgId}/tools`}
+        icon={ArrowLeft}
+        isActive={false}
+        variant="page"
+      />
 
       {/* Actions */}
       <div className="px-3 py-3 flex flex-col gap-2">

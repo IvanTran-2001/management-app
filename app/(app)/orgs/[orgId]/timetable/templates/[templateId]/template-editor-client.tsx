@@ -33,6 +33,7 @@ import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
+  LayoutList,
   MoreHorizontal,
   Plus,
   X,
@@ -388,6 +389,20 @@ export function TemplateEditorClient({
       window.removeEventListener("template:open-task-panel", handler);
   }, []);
 
+  // Track when the sidebar's schedule form is open so we can suppress the
+  // empty-state overlay (otherwise the overlay blocks the grid).
+  const [isScheduling, setIsScheduling] = useState(false);
+  useEffect(() => {
+    const onEnter = () => setIsScheduling(true);
+    const onExit = () => setIsScheduling(false);
+    window.addEventListener("template:schedule-mode-enter", onEnter);
+    window.addEventListener("template:schedule-mode-exit", onExit);
+    return () => {
+      window.removeEventListener("template:schedule-mode-enter", onEnter);
+      window.removeEventListener("template:schedule-mode-exit", onExit);
+    };
+  }, []);
+
   // ── Filter visible instances ──────────────────────────────────────────
   const visibleInstances = instances.filter((inst) =>
     visibleDays.includes(inst.dayIndex),
@@ -619,8 +634,8 @@ export function TemplateEditorClient({
             ref={containerRef}
             className={`relative flex-1 min-w-0${fillHeight ? " min-h-0 flex flex-col" : ""}`}
           >
-            {/* Empty state — hidden during tap-to-place and drag */}
-            {!visibleInstances.length && !isDragging && !selectedTaskId && (
+            {/* Empty state — hidden during tap-to-place, drag, or schedule form */}
+            {!visibleInstances.length && !isDragging && !selectedTaskId && !isScheduling && (
               <div className="absolute inset-0 z-20 flex items-center justify-center border bg-background/90">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <p className="text-2xl font-semibold text-foreground">
@@ -707,10 +722,10 @@ export function TemplateEditorClient({
         </div>
       )}
 
-      {/* Mobile: cancel tap-to-place button + Sheet */}
+      {/* Mobile: floating Tasks / Cancel button + Sheet */}
       {isMobile && (
         <>
-          {selectedTaskId && (
+          {selectedTaskId ? (
             <button
               onClick={() => setSelectedTaskId(null)}
               className="fixed bottom-6 right-4 z-40 flex items-center gap-2 rounded-full bg-destructive text-destructive-foreground shadow-lg px-4 py-2.5 text-sm font-medium active:scale-95 transition-transform"
@@ -719,6 +734,16 @@ export function TemplateEditorClient({
             >
               <X className="h-4 w-4" />
               Cancel
+            </button>
+          ) : (
+            <button
+              onClick={() => setTaskPanelOpen(true)}
+              className="fixed bottom-6 right-4 z-40 flex items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg px-4 py-2.5 text-sm font-medium active:scale-95 transition-transform"
+              style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+              aria-label="Open task list"
+            >
+              <LayoutList className="h-4 w-4" />
+              Tasks
             </button>
           )}
 

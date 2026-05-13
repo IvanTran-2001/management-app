@@ -10,11 +10,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeftRight, List, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/search-input";
+import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
 
 // Placeholder tool list — replace with DB-driven data once the Tool model exists
 const PLACEHOLDER_TOOLS = [
@@ -61,19 +60,14 @@ export function ToolsSidebarContent({ orgId }: { orgId: string }) {
             const isActive = pathname === href;
             const Icon = tool.icon;
             return (
-              <Link
+              <SidebarNavItem
                 key={tool.id}
-                href={href}
-                className={cn(
-                  "relative flex items-center gap-2.5 h-12 px-4 text-sm border-b border-border transition-colors",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="truncate">{tool.name}</span>
-              </Link>
+                title={tool.name}
+                url={href}
+                icon={Icon}
+                isActive={isActive}
+                variant="page"
+              />
             );
           })
         )}

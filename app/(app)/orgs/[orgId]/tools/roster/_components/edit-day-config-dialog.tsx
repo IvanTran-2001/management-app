@@ -2,18 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { upsertRosterDayConfigAction } from "@/app/actions/roster";
+import { useActionSidebar } from "@/components/layout/action-sidebar-context";
 import type { DayConfigRow } from "./roster-board";
-import { DAY_LABELS } from "./roster-board-constants";
 
 function minToTime(min: number | null): string {
   if (min === null) return "";
@@ -29,31 +22,32 @@ function timeToMin(time: string): number | null {
   return h * 60 + m;
 }
 
-interface EditDayConfigDialogProps {
+interface EditDayConfigPanelProps {
   orgId: string;
   dayIndex: number;
   config: DayConfigRow | null;
-  onClose: () => void;
+  orgOpenTimeMin: number | null;
+  orgCloseTimeMin: number | null;
 }
 
-export function EditDayConfigDialog({
+export function EditDayConfigPanel({
   orgId,
   dayIndex,
   config,
-  onClose,
-}: EditDayConfigDialogProps) {
+  orgOpenTimeMin,
+  orgCloseTimeMin,
+}: EditDayConfigPanelProps) {
+  const { close } = useActionSidebar();
   const [recommendedSize, setRecommendedSize] = useState(
     config?.recommendedSize ?? 1,
   );
   const [openTime, setOpenTime] = useState(
-    minToTime(config?.openTimeMin ?? null),
+    minToTime(config?.openTimeMin ?? orgOpenTimeMin),
   );
   const [closeTime, setCloseTime] = useState(
-    minToTime(config?.closeTimeMin ?? null),
+    minToTime(config?.closeTimeMin ?? orgCloseTimeMin),
   );
   const [isPending, startTransition] = useTransition();
-
-  const dayLabel = DAY_LABELS[dayIndex];
 
   function handleSave() {
     startTransition(async () => {
@@ -63,7 +57,7 @@ export function EditDayConfigDialog({
         closeTimeMin: timeToMin(closeTime),
       });
       if (result.ok) {
-        onClose();
+        close();
       } else {
         toast.error(result.error ?? "Failed to save");
       }
@@ -71,57 +65,49 @@ export function EditDayConfigDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-xs">
-        <DialogHeader>
-          <DialogTitle className="text-sm">Edit {dayLabel} row</DialogTitle>
-        </DialogHeader>
+    <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium">Recommended Size</label>
+        <Input
+          type="number"
+          min={0}
+          max={100}
+          value={recommendedSize}
+          onChange={(e) =>
+            setRecommendedSize(Math.max(0, Number(e.target.value)))
+          }
+          className="h-8 text-sm"
+        />
+      </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium">Recommended Size</label>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              value={recommendedSize}
-              onChange={(e) =>
-                setRecommendedSize(Math.max(0, Number(e.target.value)))
-              }
-              className="h-8 text-sm"
-            />
-          </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium">Open Time</label>
+        <Input
+          type="time"
+          value={openTime}
+          onChange={(e) => setOpenTime(e.target.value)}
+          className="h-8 text-sm"
+        />
+      </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium">Open Time</label>
-            <Input
-              type="time"
-              value={openTime}
-              onChange={(e) => setOpenTime(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium">Close Time</label>
+        <Input
+          type="time"
+          value={closeTime}
+          onChange={(e) => setCloseTime(e.target.value)}
+          className="h-8 text-sm"
+        />
+      </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium">Close Time</label>
-            <Input
-              type="time"
-              value={closeTime}
-              onChange={(e) => setCloseTime(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={isPending}>
-            {isPending ? "Saving…" : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" size="sm" onClick={close}>
+          Cancel
+        </Button>
+        <Button size="sm" onClick={handleSave} disabled={isPending}>
+          {isPending ? "Saving…" : "Save"}
+        </Button>
+      </div>
+    </div>
   );
 }

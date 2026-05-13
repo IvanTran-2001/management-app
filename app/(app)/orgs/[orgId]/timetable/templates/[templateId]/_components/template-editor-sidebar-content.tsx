@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ListPlus, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TimetableViewPicker } from "../../../_components/timetable-view-picker";
-import { TaskPanel } from "../../../_shared/task-panel";
+import { AddTemplateTaskPanel } from "./add-template-task-panel";
 import { updateTemplateDaysAction } from "@/app/actions/templates";
 import { useActionSidebar } from "@/components/layout/action-sidebar-context";
 import type { SharedTask } from "../../../_shared/types";
@@ -44,14 +44,12 @@ export function TemplateEditorSidebarContent({
     const k = ++taskPanelKeyRef.current;
     open(
       "Add Task",
-      <TaskPanel
+      <AddTemplateTaskPanel
         key={k}
         tasks={availableTasks}
-        onDragStart={(taskId, e) => {
-          e.dataTransfer.setData("timetable/taskId", taskId);
-          e.dataTransfer.effectAllowed = "copy";
-        }}
-        onDragEnd={() => {}}
+        orgId={orgId}
+        templateId={templateId}
+        templateDays={templateDays}
       />,
     );
   }

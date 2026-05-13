@@ -120,18 +120,18 @@ export const NavBar = async () => {
                   variant="ghost"
                   size="icon"
                   aria-label="Open user menu"
-                  className="h-9 w-9 rounded-full bg-primary hover:bg-primary/90 overflow-hidden p-0 flex items-center justify-center"
+                  className="h-7 w-7 rounded-full bg-primary hover:bg-primary/90 overflow-hidden p-0 flex items-center justify-center"
                 >
                   {user.image ? (
                     <Image
                       src={user.image}
                       alt={user.name ?? "User"}
-                      width={36}
-                      height={36}
+                      width={28}
+                      height={28}
                       className="rounded-full object-cover"
                     />
                   ) : (
-                    <span className="text-sm font-semibold text-primary-foreground">
+                    <span className="text-xs font-semibold text-primary-foreground">
                       {user.name?.[0]?.toUpperCase() ?? "?"}
                     </span>
                   )}

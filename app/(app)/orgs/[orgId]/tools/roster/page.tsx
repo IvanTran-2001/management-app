@@ -2,11 +2,14 @@
  * RosterPage — fetches roster data and renders the interactive board.
  */
 import { requireOrgMemberPage } from "@/lib/authz";
-import { Toolbar } from "@/components/layout/toolbar";
+import { memberHasPermission, getOrgMembership } from "@/lib/authz/_shared";
+import { PermissionAction } from "@prisma/client";
+import { getRoles } from "@/lib/services/roles";
 import {
   getRosterEntries,
   getRosterDayConfigs,
   getOrgMembersForRoster,
+  getOrgSchedule,
 } from "@/lib/services/roster";
 import { RosterPageClient } from "./_components/roster-page-client";
 
@@ -32,28 +35,39 @@ export default async function RosterPage({
   params: Promise<{ orgId: string }>;
 }) {
   const { orgId } = await params;
-  await requireOrgMemberPage(orgId);
+  const { userId } = await requireOrgMemberPage(orgId);
 
   const weekStarts = getInitialWeekStarts();
 
-  const [entries, dayConfigs, members] = await Promise.all([
-    getRosterEntries(orgId, weekStarts),
-    getRosterDayConfigs(orgId),
-    getOrgMembersForRoster(orgId),
-  ]);
+  const [entries, dayConfigs, members, membership, roles, orgSchedule] =
+    await Promise.all([
+      getRosterEntries(orgId, weekStarts),
+      getRosterDayConfigs(orgId),
+      getOrgMembersForRoster(orgId),
+      getOrgMembership(orgId, userId),
+      getRoles(orgId),
+      getOrgSchedule(orgId),
+    ]);
+
+  const canManage = membership
+    ? await memberHasPermission(
+        membership.id,
+        orgId,
+        PermissionAction.MANAGE_MEMBERS,
+      )
+    : false;
 
   return (
-    <>
-      <Toolbar>
-        <h1 className="text-sm font-semibold">Roster</h1>
-      </Toolbar>
-
-      <RosterPageClient
-        orgId={orgId}
-        entries={entries}
-        dayConfigs={dayConfigs}
-        members={members}
-      />
-    </>
+    <RosterPageClient
+      orgId={orgId}
+      entries={entries}
+      dayConfigs={dayConfigs}
+      members={members}
+      roles={roles.map((r) => ({ id: r.id, name: r.name, color: r.color }))}
+      canManage={canManage}
+      orgOpenTimeMin={orgSchedule.openTimeMin}
+      orgCloseTimeMin={orgSchedule.closeTimeMin}
+      orgTimezone={orgSchedule.timezone}
+    />
   );
 }

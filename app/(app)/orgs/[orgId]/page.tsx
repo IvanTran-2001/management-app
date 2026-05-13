@@ -133,12 +133,27 @@ const Page = async ({ params }: { params: Promise<{ orgId: string }> }) => {
           ))}
         </div>
 
+        {/* Roster feature card — always visible */}
+        <Link
+          href={`/orgs/${orgId}/tools/roster`}
+          className="group flex items-center gap-4 rounded-xl border bg-card px-5 py-4 shadow-sm hover:border-primary/40 hover:shadow-md transition-all mb-8"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+            <Users className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold leading-snug">Roster</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Manage your weekly staff roster</p>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+        </Link>
+
         {/* Recent Tools */}
         {recentSets.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold">Recent Tools</h2>
-              <Link href={`/orgs/${orgId}/tools/conversion`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <Link href={`/orgs/${orgId}/tools`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                 All tools →
               </Link>
             </div>

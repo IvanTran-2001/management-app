@@ -30,6 +30,34 @@ export type RosterDayConfigRow = {
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 /**
+ * Returns the org's default open/close times.
+ */
+export async function getOrgSchedule(
+  orgId: string,
+): Promise<{ openTimeMin: number | null; closeTimeMin: number | null; timezone: string }> {
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { openTimeMin: true, closeTimeMin: true, timezone: true },
+  });
+  return {
+    openTimeMin: org?.openTimeMin ?? null,
+    closeTimeMin: org?.closeTimeMin ?? null,
+    timezone: org?.timezone ?? "UTC",
+  };
+}
+
+/**
+ * Returns true if the org has any roster entries or day configs (i.e. has used the Roster tool).
+ */
+export async function hasRosterActivity(orgId: string): Promise<boolean> {
+  const [entries, configs] = await Promise.all([
+    prisma.rosterEntry.count({ where: { orgId } }),
+    prisma.rosterDayConfig.count({ where: { orgId } }),
+  ]);
+  return entries > 0 || configs > 0;
+}
+
+/**
  * Returns all RosterEntry rows for the given org and list of weekStart dates,
  * grouped by dayIndex within each weekStart.
  */
@@ -77,6 +105,12 @@ export async function getOrgMembersForRoster(orgId: string) {
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
+export type RosterCellMember = {
+  membershipId: string;
+  shiftStartMin: number | null;
+  shiftEndMin: number | null;
+};
+
 /**
  * Replaces all members assigned to a specific (weekStart, dayIndex) cell.
  * Runs in a transaction: deletes existing, then inserts new.
@@ -85,10 +119,12 @@ export async function setRosterCellMembers(
   orgId: string,
   weekStart: Date,
   dayIndex: number,
-  membershipIds: string[],
+  members: RosterCellMember[],
 ): Promise<ServiceResult<null>> {
   if (dayIndex < 0 || dayIndex > 6)
     return { ok: false, error: "Invalid day index", code: "INVALID" };
+
+  const membershipIds = members.map((m) => m.membershipId);
 
   // Verify all memberships belong to this org
   if (membershipIds.length > 0) {
@@ -103,13 +139,15 @@ export async function setRosterCellMembers(
     await tx.rosterEntry.deleteMany({
       where: { orgId, weekStart, dayIndex },
     });
-    if (membershipIds.length > 0) {
+    if (members.length > 0) {
       await tx.rosterEntry.createMany({
-        data: membershipIds.map((membershipId) => ({
+        data: members.map((m) => ({
           orgId,
-          membershipId,
+          membershipId: m.membershipId,
           weekStart,
           dayIndex,
+          shiftStartMin: m.shiftStartMin,
+          shiftEndMin: m.shiftEndMin,
         })),
       });
     }

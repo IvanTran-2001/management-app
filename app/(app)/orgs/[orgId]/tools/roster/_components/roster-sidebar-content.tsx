@@ -3,32 +3,48 @@
  */
 "use client";
 
-import Link from "next/link";
 import { ArrowLeft, LayoutTemplate } from "lucide-react";
+import { SidebarNavItem } from "@/components/layout/sidebar-nav-item";
+import { MembersActions } from "../../../memberships/_components/action-sidebar/members-panel-triggers";
+import {
+  SearchableCombobox,
+  type ComboboxItem,
+} from "@/components/ui/searchable-combobox";
 
-type OrgMember = {
-  id: string;
-  botName: string | null;
-  user: { name: string | null } | null;
-};
-
-interface RosterSidebarContentProps {
-  orgId: string;
-  members?: OrgMember[];
-  filterMembershipId?: string | null;
-  onFilterChange?: (id: string | null) => void;
-}
+type Role = { id: string; name: string; color: string };
+type OrgMember = { id: string; botName: string | null; user: { name: string | null } | null };
 
 function memberName(m: OrgMember): string {
   return m.botName ?? m.user?.name ?? "Unknown";
 }
 
+interface RosterSidebarContentProps {
+  orgId: string;
+  roles: Role[];
+  canManage: boolean;
+  members: OrgMember[];
+  filterMembershipId: string | null;
+  onFilterChange: (id: string | null) => void;
+}
+
 export function RosterSidebarContent({
   orgId,
-  members = [],
+  roles,
+  canManage,
+  members,
   filterMembershipId,
   onFilterChange,
 }: RosterSidebarContentProps) {
+  const filterItems: ComboboxItem[] = [
+    { id: "", name: "All members" },
+    ...members.map((m) => ({ id: m.id, name: memberName(m) })),
+  ];
+  const selectedMember = members.find((m) => m.id === filterMembershipId);
+  const filterLabel = selectedMember ? memberName(selectedMember) : "All members";
+
+  function handleFilterSelect(item: ComboboxItem) {
+    onFilterChange(item.id === "" ? null : item.id);
+  }
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Title row */}
@@ -39,58 +55,47 @@ export function RosterSidebarContent({
       </div>
 
       {/* Back */}
-      <Link
-        href={`/orgs/${orgId}/tools`}
-        className="flex items-center gap-2 h-12 px-4 text-sm border-b border-border text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors shrink-0"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Link>
+      <SidebarNavItem
+        title="Back"
+        url={`/orgs/${orgId}/tools`}
+        icon={ArrowLeft}
+        isActive={false}
+        variant="page"
+      />
 
       {/* Templates */}
-      <Link
-        href={`/orgs/${orgId}/tools/roster/templates`}
-        className="flex items-center gap-2 h-12 px-4 text-sm border-b border-border text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors shrink-0"
-      >
-        <LayoutTemplate className="h-4 w-4" />
-        Templates
-      </Link>
+      <SidebarNavItem
+        title="Templates"
+        url={`/orgs/${orgId}/tools/roster/templates`}
+        icon={LayoutTemplate}
+        isActive={false}
+        variant="page"
+      />
 
-      {/* Filters */}
-      {members.length > 0 && onFilterChange && (
-        <div className="flex flex-col gap-2 px-4 py-3 border-b border-border shrink-0">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/50">
-            Filter
-          </span>
-          <div className="flex flex-col gap-1">
-            <button
-              className={`text-xs text-left px-2 py-1 rounded transition-colors ${
-                filterMembershipId === null
-                  ? "bg-primary/10 font-semibold text-primary"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-muted/50"
-              }`}
-              onClick={() => onFilterChange(null)}
-            >
-              All members
-            </button>
-            {members.map((m) => (
-              <button
-                key={m.id}
-                className={`text-xs text-left px-2 py-1 rounded transition-colors ${
-                  filterMembershipId === m.id
-                    ? "bg-green-100 dark:bg-green-900/40 font-semibold text-green-800 dark:text-green-300"
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-muted/50"
-                }`}
-                onClick={() =>
-                  onFilterChange(filterMembershipId === m.id ? null : m.id)
-                }
-              >
-                {memberName(m)}
-              </button>
-            ))}
+      {/* Actions */}
+      {canManage && (
+        <div className="px-3 pt-3 pb-3 border-t border-border">
+          <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider px-1 mb-2">
+            Actions
+          </p>
+          <div className="flex flex-col gap-2">
+            <MembersActions orgId={orgId} roles={roles} />
           </div>
         </div>
       )}
+
+      {/* Filter */}
+      <div className="px-3 pt-3 pb-3 border-t border-border">
+        <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider px-1 mb-2">
+          Filter
+        </p>
+        <SearchableCombobox
+          items={filterItems}
+          onSelect={handleFilterSelect}
+          triggerLabel={filterLabel}
+          placeholder="Search members…"
+        />
+      </div>
     </div>
   );
 }

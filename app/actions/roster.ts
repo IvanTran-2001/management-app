@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import {
   setRosterCellMembers,
   upsertRosterDayConfig,
+  type RosterCellMember,
 } from "@/lib/services/roster";
 
 function rosterPath(orgId: string) {
@@ -16,7 +17,7 @@ export async function setRosterCellMembersAction(
   orgId: string,
   weekStart: Date,
   dayIndex: number,
-  membershipIds: string[],
+  members: RosterCellMember[],
 ): Promise<{ ok: boolean; error?: string }> {
   const authz = await requireOrgPermissionAction(
     orgId,
@@ -24,12 +25,7 @@ export async function setRosterCellMembersAction(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  const result = await setRosterCellMembers(
-    orgId,
-    weekStart,
-    dayIndex,
-    membershipIds,
-  );
+  const result = await setRosterCellMembers(orgId, weekStart, dayIndex, members);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(rosterPath(orgId));

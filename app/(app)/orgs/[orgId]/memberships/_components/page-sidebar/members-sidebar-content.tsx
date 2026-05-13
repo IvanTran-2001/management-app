@@ -11,7 +11,7 @@
  * server page re-renders with the updated params.
  */
 import { useRouter } from "next/navigation";
-import { ChevronDown, LayoutGrid, List } from "lucide-react";
+import { ChevronDown, LayoutGrid, List, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MembersActions } from "../action-sidebar/members-panel-triggers";
+import Link from "next/link";
 
 type Role = { id: string; name: string; color: string };
 
@@ -119,6 +120,17 @@ export function MembersSidebarContent({
           </p>
           <div className="flex flex-col gap-2">
             <MembersActions orgId={orgId} roles={roles} />
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="w-full justify-start gap-2"
+            >
+              <Link href={`/orgs/${orgId}/tools/roster`}>
+                <Users className="h-4 w-4 shrink-0" />
+                Roster
+              </Link>
+            </Button>
           </div>
         </div>
       )}

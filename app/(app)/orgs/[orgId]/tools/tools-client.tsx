@@ -31,29 +31,35 @@ interface RecentSet {
 interface ToolsClientProps {
   orgId: string;
   recentSets: RecentSet[];
+  hasRoster: boolean;
 }
 
-export function ToolsClient({ orgId, recentSets }: ToolsClientProps) {
+export function ToolsClient({ orgId, recentSets, hasRoster }: ToolsClientProps) {
   const recent = recentSets.slice(0, 5);
+  const showRecent = recent.length > 0 || hasRoster;
 
   return (
     <>
       <Toolbar />
 
       <div className="max-w-2xl mx-auto w-full px-1 py-6 flex flex-col gap-8">
-        {/* Recent conversion sets */}
-        {recent.length > 0 && (
+        {/* Recent */}
+        {showRecent && (
           <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recent</h2>
-              <Link
-                href={`/orgs/${orgId}/tools/conversion`}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                View all
-              </Link>
             </div>
             <div className="flex flex-col gap-2">
+              {hasRoster && (
+                <Link
+                  href={`/orgs/${orgId}/tools/roster`}
+                  className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm hover:border-primary/40 hover:shadow-md transition-all group"
+                >
+                  <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="text-sm font-medium flex-1">Roster</span>
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </Link>
+              )}
               {recent.map((set) => (
                 <Link
                   key={set.id}
