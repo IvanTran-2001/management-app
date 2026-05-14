@@ -1,8 +1,7 @@
 -- Add CHECK constraints to enforce documented day/time bounds.
 --
 -- dayIndex   : 0–6  (Mon=0 … Sun=6)
--- *TimeMin   : 0–1440  (0 = midnight, 1440 = midnight next day)
--- *StartMin / *EndMin : 0–1440 (nullable columns must also allow NULL)
+-- *TimeMin   : 0–1440  (0 = midnight, 1440 = midnight next day — all scheduling models)
 -- cycleWeeks : 1–12  (enforced in service layer; mirrored here)
 -- weekIndex  : >= 0
 
@@ -12,9 +11,9 @@ ALTER TABLE "TimetableTemplateEntry"
   ADD CONSTRAINT "TimetableTemplateEntry_dayIndex_check"
     CHECK ("dayIndex" >= 0),
   ADD CONSTRAINT "TimetableTemplateEntry_startTimeMin_check"
-    CHECK ("startTimeMin" >= 0 AND "startTimeMin" <= 1439),
+    CHECK ("startTimeMin" >= 0 AND "startTimeMin" <= 1440),
   ADD CONSTRAINT "TimetableTemplateEntry_endTimeMin_check"
-    CHECK ("endTimeMin" >= 0 AND "endTimeMin" <= 1439);
+    CHECK ("endTimeMin" >= 0 AND "endTimeMin" <= 1440);
 
 -- ─── RosterEntry ─────────────────────────────────────────────────────────────
 ALTER TABLE "RosterEntry"
