@@ -42,7 +42,7 @@ export function RosterSidebarContent({
   filterMembershipId,
   onFilterChange,
 }: RosterSidebarContentProps) {
-  const { open, close, activeTitle } = useActionSidebar();
+  const { open, activeTitle } = useActionSidebar();
   const applyKeyRef = useRef(0);
 
   const filterItems: ComboboxItem[] = [

@@ -141,7 +141,7 @@ export function EditTemplateCellPanel({
             return (
               <div key={s.membershipId} className="flex flex-col gap-2 rounded-md border border-border p-2.5">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-medium break-words min-w-0">{memberDisplayName(member)}</span>
+                  <span className="text-sm font-medium break-all min-w-0">{memberDisplayName(member)}</span>
                   <button
                     type="button"
                     onClick={() => removeMember(s.membershipId)}
