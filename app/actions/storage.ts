@@ -221,3 +221,28 @@ export async function removeOrgLogo(
   await updateOrgImage(orgId, null);
   return { ok: true };
 }
+
+// ─── Feedback Screenshot Actions ─────────────────────────────────────────────
+
+/**
+ * Returns a signed upload URL for a feedback screenshot in the public bucket.
+ * Path: feedback/{userId}/{uuid}.{ext}
+ * Any signed-in user can upload (no org permission needed).
+ */
+export async function getFeedbackImageUploadUrl(
+  mimeType: string,
+): Promise<{ ok: true; signedUrl: string; path: string } | { ok: false; error: string }> {
+  const { requireUserAction } = await import("@/lib/authz");
+  const authz = await requireUserAction();
+  if (!authz.ok) return { ok: false, error: "Unauthorized" };
+
+  if (!ALLOWED_MIME_TYPES.includes(mimeType as AllowedMime)) {
+    return { ok: false, error: "Unsupported file type. Use JPEG, PNG, or WebP." };
+  }
+
+  const ext = EXT[mimeType as AllowedMime];
+  const uuid = crypto.randomUUID();
+  const storagePath = `feedback/${authz.userId}/${uuid}.${ext}`;
+
+  return createSignedUploadUrlPublic(storagePath);
+}

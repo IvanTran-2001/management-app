@@ -40,6 +40,16 @@ export async function isParentOrgOwner(
   return org !== null;
 }
 
+/** Returns true if the given email belongs to an AdminUser row. */
+export async function isAdminUser(email: string | null): Promise<boolean> {
+  if (!email) return false;
+  const admin = await prisma.adminUser.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  return admin !== null;
+}
+
 /** Returns true if the membership's role(s) grant the given permission. */
 export async function memberHasPermission(
   membershipId: string,
