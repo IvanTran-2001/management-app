@@ -353,6 +353,14 @@ export async function renameConversionTemplateAction(
   if (!trimmed) return { ok: false as const, error: "Name is required." };
 
   try {
+    const template = await prisma.conversionTemplate.findFirst({
+      where: { id: templateId, set: { orgId } },
+      select: { name: true },
+    });
+    if (template?.name === "Default") {
+      return { ok: false as const, error: "The Default template cannot be renamed." };
+    }
+
     await renameConversionTemplate(orgId, templateId, trimmed);
     revalidatePath(`/orgs/${orgId}/tools/conversion/${setId}`);
     return { ok: true as const, name: trimmed };

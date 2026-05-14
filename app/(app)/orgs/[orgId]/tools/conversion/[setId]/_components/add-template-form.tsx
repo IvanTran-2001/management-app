@@ -235,7 +235,7 @@ export function AddTemplateForm({
                         size="icon-sm"
                         variant="ghost"
                         onClick={() => handleDelete(t.id)}
-                        disabled={isPending && deletingId === t.id}
+                        disabled={isPending || deletingId === t.id}
                         className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         aria-label="Delete template"
                       >
@@ -274,7 +274,7 @@ export function AddTemplateForm({
                     size="icon-sm"
                     variant="ghost"
                     onClick={(e) => { e.stopPropagation(); handleDuplicate(t); }}
-                    disabled={isPending && duplicatingId === t.id}
+                    disabled={isPending || duplicatingId === t.id}
                     aria-label="Duplicate template"
                   >
                     <Copy />
