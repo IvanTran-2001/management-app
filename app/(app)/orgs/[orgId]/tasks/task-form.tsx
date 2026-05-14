@@ -100,6 +100,15 @@ function ImageUploadPanel({
     outputHeight: 600,
   };
 
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -110,14 +119,26 @@ function ImageUploadPanel({
   const handleCrop = (croppedFile: File) => {
     setPendingFile(null);
     const objectUrl = URL.createObjectURL(croppedFile);
-    setPreviewUrl(objectUrl);
     upload(croppedFile, () => {
+      // Only set preview after successful upload
+      // Revoke previous blob URL if it exists
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(objectUrl);
       toast.success("Image saved.");
+    }, () => {
+      // On error, revoke the blob URL we created
+      URL.revokeObjectURL(objectUrl);
     });
   };
 
   const handleRemove = () => {
     remove(() => {
+      // Revoke blob URL before clearing preview
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
       setPreviewUrl(null);
       toast.success("Image removed.");
     });

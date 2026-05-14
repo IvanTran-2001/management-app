@@ -33,15 +33,18 @@ export function useImageUpload(orgId: string, taskId: string) {
   const upload = (
     file: File,
     onSuccess: (storagePath: string) => void,
+    onError?: () => void,
   ) => {
     setError(null);
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       setError("Only JPEG, PNG, and WebP images are supported.");
+      onError?.();
       return;
     }
     if (file.size > MAX_RAW_MB * 1024 * 1024) {
       setError(`Image must be smaller than ${MAX_RAW_MB} MB.`);
+      onError?.();
       return;
     }
 
@@ -59,6 +62,7 @@ export function useImageUpload(orgId: string, taskId: string) {
         const urlResult = await getSignedUploadUrl(orgId, taskId, compressed.type);
         if (!urlResult.ok) {
           setError(urlResult.error);
+          onError?.();
           return;
         }
 
@@ -70,6 +74,7 @@ export function useImageUpload(orgId: string, taskId: string) {
         });
         if (!uploadRes.ok) {
           setError("Upload failed. Please try again.");
+          onError?.();
           return;
         }
 
@@ -77,12 +82,14 @@ export function useImageUpload(orgId: string, taskId: string) {
         const saveResult = await saveTaskImagePath(orgId, taskId, urlResult.path);
         if (!saveResult.ok) {
           setError(saveResult.error);
+          onError?.();
           return;
         }
 
         onSuccess(urlResult.path);
       } catch {
         setError("An unexpected error occurred. Please try again.");
+        onError?.();
       }
     });
   };
@@ -94,12 +101,16 @@ export function useImageUpload(orgId: string, taskId: string) {
   const remove = (onSuccess: () => void) => {
     setError(null);
     startTransition(async () => {
-      const result = await removeTaskImage(orgId, taskId);
-      if (!result.ok) {
-        setError(result.error);
-        return;
+      try {
+        const result = await removeTaskImage(orgId, taskId);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        onSuccess();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An unexpected error occurred.");
       }
-      onSuccess();
     });
   };
 

@@ -56,6 +56,15 @@ export async function getSignedUploadUrl(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
+  // Verify task belongs to this org
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { orgId: true },
+  });
+  if (!task || task.orgId !== orgId) {
+    return { ok: false, error: "Task not found" };
+  }
+
   if (!ALLOWED_MIME_TYPES.includes(mimeType as AllowedMime)) {
     return { ok: false, error: "Unsupported file type. Use JPEG, PNG, or WebP." };
   }
@@ -82,17 +91,28 @@ export async function saveTaskImagePath(
   );
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  // Delete the old file if there was one
+  // Normalize and validate storagePath
+  const normalized = storagePath.replace(/^\/+/, "").replace(/\.\./g, "");
+  const expectedPrefix = `orgs/${orgId}/tasks/${taskId}/`;
+  if (!normalized.startsWith(expectedPrefix)) {
+    return { ok: false, error: "Invalid storage path" };
+  }
+
+  // Query existing record and update DB before deleting old file
   const existing = await prisma.task.findFirst({
     where: { id: taskId, orgId },
     select: { imageUrl: true },
   });
-  if (existing?.imageUrl && existing.imageUrl !== storagePath) {
+
+  // Persist the new path first
+  const result = await updateTaskImageUrl(orgId, taskId, normalized);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  // Only delete old file after successful DB update
+  if (existing?.imageUrl && existing.imageUrl !== normalized) {
     await deleteStorageFile(existing.imageUrl);
   }
 
-  const result = await updateTaskImageUrl(orgId, taskId, storagePath);
-  if (!result.ok) return { ok: false, error: result.error };
   return { ok: true };
 }
 
@@ -156,17 +176,28 @@ export async function saveOrgLogoPath(
   const authz = await requireOrgPermissionAction(orgId, PermissionAction.MANAGE_SETTINGS);
   if (!authz.ok) return { ok: false, error: "Unauthorized" };
 
-  // Delete the old logo file if one exists
+  // Normalize and validate storagePath
+  const normalized = storagePath.replace(/^\/+/, "").replace(/\.\./g, "");
+  const expectedPrefix = `orgs/${orgId}/`;
+  if (!normalized.startsWith(expectedPrefix)) {
+    return { ok: false, error: "Invalid storage path" };
+  }
+
+  // Query existing record
   const existing = await prisma.organization.findUnique({
     where: { id: orgId },
     select: { image: true },
   });
-  if (existing?.image) {
+
+  // Update DB first
+  await updateOrgImage(orgId, normalized);
+
+  // Only delete old file after successful DB update
+  if (existing?.image && existing.image !== normalized) {
     // image stores the storage path (not the full URL)
     await deletePublicFile(existing.image);
   }
 
-  await updateOrgImage(orgId, storagePath);
   return { ok: true };
 }
 

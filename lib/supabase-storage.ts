@@ -60,11 +60,10 @@ export async function createSignedUploadUrl(storagePath: string): Promise<
     return { ok: false, error: `Storage error: ${body}` };
   }
   const data = await res.json() as Record<string, unknown>;
-  console.log("[supabase-storage] createSignedUploadUrl response:", JSON.stringify(data));
   // Field name varies by Supabase version: signedURL (older) or signedUrl (newer)
   const rawUrl = (data.signedURL ?? data.signedUrl ?? data.url) as string | undefined;
   if (!rawUrl) {
-    return { ok: false, error: `Storage error: unexpected response shape: ${JSON.stringify(data)}` };
+    return { ok: false, error: `Storage error: unexpected response shape` };
   }
   return {
     ok: true,

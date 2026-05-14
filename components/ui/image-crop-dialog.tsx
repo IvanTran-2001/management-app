@@ -158,8 +158,22 @@ export function ImageCropDialog({
 
   const isSquare = Math.abs(config.aspect - 1) < 0.01;
 
+  const handleOpenChange = (open: boolean) => {
+    // Prevent closing while processing
+    if (!open && !isProcessing) {
+      onCancel();
+    }
+  };
+
+  const handleCancel = () => {
+    // Prevent cancel while processing
+    if (!isProcessing) {
+      onCancel();
+    }
+  };
+
   return (
-    <Dialog open={!!file} onOpenChange={(open) => { if (!open) onCancel(); }}>
+    <Dialog open={!!file} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md gap-4" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Crop Image</DialogTitle>
@@ -199,6 +213,7 @@ export function ImageCropDialog({
             onChange={(e) => setZoom(Number(e.target.value))}
             className="w-full accent-primary h-1.5 cursor-pointer"
             aria-label="Zoom"
+            disabled={isProcessing}
           />
           <span className="text-xs text-muted-foreground w-10 shrink-0 text-right">
             {zoom.toFixed(1)}×
@@ -210,7 +225,7 @@ export function ImageCropDialog({
         </p>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={isProcessing}>
+          <Button variant="outline" size="sm" onClick={handleCancel} disabled={isProcessing}>
             Cancel
           </Button>
           <Button size="sm" onClick={handleConfirm} disabled={isProcessing}>
