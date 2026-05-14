@@ -28,6 +28,7 @@ export default async function OrgSettingsOrganizationPage({
       timezone: true,
       openTimeMin: true,
       closeTimeMin: true,
+      image: true,
     },
   });
   if (!org) notFound();

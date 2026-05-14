@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-type Org = { id: string; name: string };
+type Org = { id: string; name: string; image: string | null };
 
 /** Returns a stable hue (0–359) based on the org id string. */
 function orgHue(id: string): number {
@@ -30,6 +30,17 @@ function orgHue(id: string): number {
 }
 
 function OrgBadge({ org }: { org: Org }) {
+  if (org.image) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={org.image}
+        alt={org.name}
+        className="h-5 w-5 shrink-0 rounded object-cover select-none"
+        aria-hidden
+      />
+    );
+  }
   const hue = orgHue(org.id);
   return (
     <span

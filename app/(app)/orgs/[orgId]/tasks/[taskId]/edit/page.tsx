@@ -12,6 +12,7 @@ import { PermissionAction } from "@prisma/client";
 import { getTaskById } from "@/lib/services/tasks";
 import { getRoles } from "@/lib/services/roles";
 import { getOrgTags } from "@/lib/services/tags";
+import { createSignedReadUrl } from "@/lib/supabase-storage";
 import { TaskForm } from "../../task-form";
 import { Toolbar } from "@/components/layout/toolbar";
 import { BackButton } from "@/components/layout/back-button";
@@ -32,6 +33,10 @@ const EditTaskPage = async ({
   ]);
 
   if (!task) notFound();
+
+  const imageSignedUrl = task.imageUrl
+    ? await createSignedReadUrl(task.imageUrl)
+    : null;
 
   const eligibleRoles = task.eligibility.map((e) => e.role);
   const taskTags = task.tags.map((t) => t.tag);
@@ -58,6 +63,7 @@ const EditTaskPage = async ({
             eligibleRoles={eligibleRoles}
             allTags={allTags}
             taskTags={taskTags}
+            imageSignedUrl={imageSignedUrl}
             defaultValues={{
               color: task.color,
               title: task.name,

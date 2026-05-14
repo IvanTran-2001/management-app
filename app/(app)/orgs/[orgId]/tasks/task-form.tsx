@@ -20,6 +20,7 @@ import {
   useEffect,
   useTransition,
   useState,
+  useRef,
 } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -40,6 +41,9 @@ import {
   SearchableCombobox,
   type ComboboxItem,
 } from "@/components/ui/searchable-combobox";
+import { useImageUpload } from "@/hooks/use-image-upload";
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
+import type { ImageCropConfig } from "@/components/ui/image-crop-dialog";
 
 type Role = { id: string; name: string; color: string | null };
 type Tag = { id: string; name: string; color: string };
@@ -59,6 +63,8 @@ type TaskFormProps =
       eligibleRoles: Role[];
       allTags: Tag[];
       taskTags: Tag[];
+      /** Short-lived signed read URL for the current task image, if any. */
+      imageSignedUrl?: string | null;
       defaultValues: {
         color: string;
         title: string;
@@ -70,6 +76,122 @@ type TaskFormProps =
         maxWaitDays?: number | null;
       };
     };
+
+// ─── Image upload panel ───────────────────────────────────────────────────────
+
+function ImageUploadPanel({
+  orgId,
+  taskId,
+  initialSignedUrl,
+}: {
+  orgId: string;
+  taskId: string;
+  /** A short-lived signed read URL for the current image, or null. */
+  initialSignedUrl: string | null;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(initialSignedUrl);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { upload, remove, isPending, error } = useImageUpload(orgId, taskId);
+
+  const TASK_CROP_CONFIG: ImageCropConfig = {
+    aspect: 1,
+    outputWidth: 600,
+    outputHeight: 600,
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setPendingFile(file);
+  };
+
+  const handleCrop = (croppedFile: File) => {
+    setPendingFile(null);
+    const objectUrl = URL.createObjectURL(croppedFile);
+    setPreviewUrl(objectUrl);
+    upload(croppedFile, () => {
+      toast.success("Image saved.");
+    });
+  };
+
+  const handleRemove = () => {
+    remove(() => {
+      setPreviewUrl(null);
+      toast.success("Image removed.");
+    });
+  };
+
+  return (
+    <>
+      <ImageCropDialog
+        file={pendingFile}
+        config={TASK_CROP_CONFIG}
+        onCrop={handleCrop}
+        onCancel={() => setPendingFile(null)}
+      />
+
+      <div className="flex flex-col gap-3">
+        <span className="text-sm font-medium">Photo</span>
+
+        {previewUrl ? (
+          <div className="relative w-full max-w-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt="Task photo"
+              className="w-full rounded-lg object-cover max-h-48"
+            />
+            <div className="mt-2 flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isPending}
+              >
+                {isPending ? "Uploading…" : "Replace"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={handleRemove}
+                disabled={isPending}
+              >
+                Remove
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isPending}
+          >
+            {isPending ? "Uploading…" : "Upload photo"}
+          </Button>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleFileChange}
+          disabled={isPending}
+        />
+
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
+    </>
+  );
+}
 
 // ─── Tag panel ───────────────────────────────────────────────────────────────
 //
@@ -688,6 +810,17 @@ export function TaskForm(props: TaskFormProps) {
           <TagPanel mode="create" allTags={props.allTags} />
         )}
       </div>
+
+      {/* ── Image upload (edit mode only) ────────────────────────────────── */}
+      {isEdit && (
+        <div className="rounded-xl border bg-card p-5">
+          <ImageUploadPanel
+            orgId={props.orgId}
+            taskId={props.taskId}
+            initialSignedUrl={props.imageSignedUrl ?? null}
+          />
+        </div>
+      )}
 
       {/* ── Eligibility panel ─────────────────────────────────────────────── */}
       <div className="rounded-xl border bg-card p-5">

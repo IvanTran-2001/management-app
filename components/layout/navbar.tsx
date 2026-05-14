@@ -16,6 +16,7 @@ import { auth, signOut } from "@/auth";
 import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getPublicUrl } from "@/lib/supabase-storage";
 import { Button } from "@/components/ui/button";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { MobileSidebarTrigger } from "@/components/layout/sidebar";
@@ -54,13 +55,14 @@ export const NavBar = async () => {
     ? await prisma.membership
         .findMany({
           where: { userId: user.id },
-          select: { organization: { select: { id: true, name: true } } },
+          select: { organization: { select: { id: true, name: true, image: true } } },
         })
         .then((ms) =>
           ms
             .map((m) => m.organization)
             .filter((org) => org !== null)
-            .sort((a, b) => a.name.localeCompare(b.name)),
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((org) => ({ ...org, image: org.image ? getPublicUrl(org.image) : null })),
         )
         .catch((error) => {
           console.error("Failed to load organizations for navbar", error);

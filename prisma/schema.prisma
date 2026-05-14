@@ -287,6 +287,8 @@ model Task {
   minWaitDays           Int?
   maxWaitDays           Int?
 
+  imageUrl              String?  // Supabase Storage path (not a signed URL)
+
   eligibility           TaskEligibility[]
   tags                  TaskTag[]
   timetableEntries      TimetableEntry[]

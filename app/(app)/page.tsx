@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { requireUserPage } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { getPublicUrl } from "@/lib/supabase-storage";
 import { Building2, Plus, Network, Users, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -162,7 +163,7 @@ export default async function HubPage({
   const orgs: OrgEntry[] = memberships.map((m) => ({
     id: m.organization.id,
     name: m.organization.name,
-    image: m.organization.image,
+    image: m.organization.image ? getPublicUrl(m.organization.image) : null,
     isOwner: m.organization.ownerId === userId,
     memberCount: m.organization._count.memberships,
     timezone: m.organization.timezone,

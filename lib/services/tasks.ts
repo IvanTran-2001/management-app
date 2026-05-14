@@ -167,6 +167,24 @@ export async function updateTask(
 }
 
 /**
+ * Saves a Supabase Storage path as the task's image, replacing any previous
+ * value. Pass `null` to clear the image. Scoped to orgId for safety.
+ */
+export async function updateTaskImageUrl(
+  orgId: string,
+  taskId: string,
+  imageUrl: string | null,
+): Promise<ServiceResult<null>> {
+  const { count } = await prisma.task.updateMany({
+    where: { id: taskId, orgId },
+    data: { imageUrl },
+  });
+  if (count === 0)
+    return { ok: false, error: "Task not found", code: "NOT_FOUND" };
+  return { ok: true, data: null };
+}
+
+/**
  * Adds a role to a task's eligibility list.
  * No-op if the role is already eligible (skipDuplicates).
  */

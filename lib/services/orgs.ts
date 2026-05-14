@@ -317,6 +317,13 @@ export async function updateOrgSettings(
   return updated;
 }
 
+export async function updateOrgImage(orgId: string, imageUrl: string | null) {
+  await prisma.organization.update({
+    where: { id: orgId },
+    data: { image: imageUrl },
+  });
+}
+
 /**
  * Transfers org ownership to a different member.
  * Restricted to the current owner of a non-franchisee org (no parentId).

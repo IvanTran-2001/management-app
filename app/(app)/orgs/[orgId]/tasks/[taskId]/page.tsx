@@ -12,6 +12,7 @@ import { PermissionAction } from "@prisma/client";
 import { requireOrgMemberPage } from "@/lib/authz";
 import { getOrgMembership, memberHasPermission } from "@/lib/authz/_shared";
 import { getTaskById } from "@/lib/services/tasks";
+import { createSignedReadUrl } from "@/lib/supabase-storage";
 import { Toolbar } from "@/components/layout/toolbar";
 import { BackButton } from "@/components/layout/back-button";
 import { TaskViewActions } from "./task-view-actions";
@@ -56,13 +57,12 @@ const ViewTaskPage = async ({ params, searchParams }: Props) => {
   ]);
   if (!task) notFound();
 
-  const canManage = membership
-    ? await memberHasPermission(
-        membership.id,
-        orgId,
-        PermissionAction.MANAGE_TASKS,
-      )
-    : false;
+  const [canManage, imageSignedUrl] = await Promise.all([
+    membership
+      ? memberHasPermission(membership.id, orgId, PermissionAction.MANAGE_TASKS)
+      : Promise.resolve(false),
+    task.imageUrl ? createSignedReadUrl(task.imageUrl) : Promise.resolve(null),
+  ]);
 
   const eligibleRoles = task.eligibility.map((e) => e.role);
   const taskTags = task.tags.map((t) => t.tag);
@@ -142,9 +142,18 @@ const ViewTaskPage = async ({ params, searchParams }: Props) => {
 
           {/* Right: photo placeholder + created date */}
           <div className="flex flex-col gap-4 order-first md:order-last">
-            <div className="rounded-md bg-muted aspect-square w-full flex items-center justify-center text-xs text-muted-foreground">
-              Photo
-            </div>
+            {imageSignedUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageSignedUrl}
+                alt={`Photo for ${task.name}`}
+                className="rounded-md aspect-square w-full object-cover"
+              />
+            ) : (
+              <div className="rounded-md bg-muted aspect-square w-full flex items-center justify-center text-xs text-muted-foreground">
+                No photo
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               Created {formatDate(task.createdAt)}
             </p>

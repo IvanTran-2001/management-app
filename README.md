@@ -25,6 +25,7 @@ Production deployment: **[friendchise.app](https://friendchise.app)**
 - **Sonner** — toast notifications
 - **Zod v4** — schema validation
 - **react-markdown** + **remark-gfm** — GFM markdown rendering for task descriptions
+- **react-easy-crop** — in-browser pan/zoom crop editor (used for org logos and task images)
 - **Vitest** — unit + integration tests
 - **Playwright** — E2E browser tests
 - **Sentry** — error monitoring, performance tracing, session replay, and server-side logs
@@ -66,6 +67,11 @@ SENTRY_AUTH_TOKEN=
 # Upstash Redis — rate limiting (get from console.upstash.com > your database > REST API)
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
+
+# Supabase Storage — file uploads (org logos, task images)
+# Get from Supabase dashboard > Settings > API
+NEXT_PUBLIC_SUPABASE_URL=       # e.g. https://<project-ref>.supabase.co
+SUPABASE_SECRET_KEY=            # service_role JWT (legacy eyJ... format)
 ```
 
 Optional / local overrides (`.env.local`):
@@ -339,7 +345,7 @@ app/
           layout.tsx            # Registers TasksSidebarShell for all tasks routes
           [taskId]/       # Task detail view (links from timetable)
             edit/         # Edit task form (includes color picker)
-          task-form.tsx   # Shared create/edit form — title, color picker, fields, eligibility
+          task-form.tsx   # Shared create/edit form — title, color picker, image upload (crop dialog), eligibility
           _components/
             tasks-config.ts             # Shared sort constants (SortOption, SORT_OPTIONS) — plain module, no "use client"
             tasks-sidebar-shell.tsx     # Persistent sidebar shell (panel title + List nav tab + sub-content slot)
@@ -386,6 +392,7 @@ app/
     franchisee.ts
     roles.ts
     tools.ts              # Conversion tool mutations — all require MANAGE_TASKS
+    storage.ts            # Image upload actions for task images (private) and org logos (public)
   api/                    # REST API route handlers (session-authenticated)
     auth/[...nextauth]/
     orgs/
@@ -402,24 +409,30 @@ app/
 
 components/
   layout/
-    navbar.tsx                  # Top bar — h-12 server component; fetches notification counts server-side
+    navbar.tsx                  # Top bar — h-12 server component; fetches org logos + notification counts server-side
     navbar-context-actions.tsx  # Route-aware action buttons
     sidebar.tsx                 # Global app sidebar: desktop hover-expand (w-12→w-52), mobile overlay
     sidebar-nav-item.tsx        # Shared nav link — variant="app" (icon-well) or variant="page" (inline)
     mobile-sidebar-context.tsx  # Boolean context for mobile sidebar overlay open/close state
     page-sidebar-context.tsx    # Slot-based page sidebar: RegisterPageSidebar + PageSidebarSlot + RegisterPageSidebarSubContent sub-content slot
     action-sidebar-context.tsx  # Transient action panel (ActionSidebarSlot) beside page sidebar; open/close via hook
-    org-switcher.tsx            # Org selector dropdown
+    org-switcher.tsx            # Org selector dropdown — shows logo image when available, falls back to colored letter badge
     toolbar.tsx                 # h-12 sticky sub-header; cancels main padding with negative margins; left-pads when sidebar collapsed; uses useLayoutEffect to avoid height flash on load; children are optional (renders as empty bar)
     actions/
       tasks-actions.tsx
       members-actions.tsx
   ui/                           # shadcn/ui + Radix UI primitives
+                                # image-crop-dialog.tsx — reusable pan/zoom crop dialog (react-easy-crop)
+                                #   exports ImageCropConfig + ImageCropDialog
+                                #   used by task-form.tsx (1:1 600×600) and settings-client.tsx (1:1 512×512)
 
 lib/
   prisma.ts
   rbac.ts               # ROLE_KEYS constants (OWNER, DEFAULT_MEMBER)
   utils.ts
+  supabase-storage.ts   # Server-only Supabase Storage REST helpers (no SDK)
+                        #   Private bucket (task images): createSignedUploadUrl, createSignedReadUrl, deleteStorageFile
+                        #   Public bucket (org logos):    createSignedUploadUrlPublic, getPublicUrl, deletePublicFile
   authz/
     _shared.ts
     api.ts
@@ -429,7 +442,7 @@ lib/
   services/
     types.ts
     audit-log.ts        # logAudit() write helper (Zod-validated) + getAuditLogs() read helper
-    orgs.ts
+    orgs.ts             # updateOrgImage(orgId, imageUrl | null) — sets Organization.image
     memberships.ts      # updateMembership rejects any roleId whose key === "owner"
     tasks.ts            # createTask / updateTask both require and persist color
     timetable-entries.ts
@@ -513,6 +526,84 @@ LEFT JOIN "User" u ON u.id = al."actorId"
 WHERE al."orgId" = '<org-id>'
 ORDER BY al."createdAt" DESC
 LIMIT 100;
+```
+
+## Image Storage
+
+File uploads are handled via **Supabase Storage** using direct browser-to-storage PUT requests (signed URLs), which avoids Vercel's 4.5 MB body limit.
+
+### Buckets
+
+| Bucket                | Access  | Used for    | URL resolution              |
+| --------------------- | ------- | ----------- | --------------------------- |
+| `friendchise-private` | Private | Task images | Short-lived signed read URL |
+| `friendchise-public`  | Public  | Org logos   | Permanent public URL        |
+
+Both buckets must exist in the Supabase project. `NEXT_PUBLIC_SUPABASE_URL` (the project URL) and `SUPABASE_SECRET_KEY` (the `service_role` JWT) are required env vars.
+
+### Storage path conventions
+
+| File type  | Path pattern                               | DB field                |
+| ---------- | ------------------------------------------ | ----------------------- |
+| Task image | `orgs/{orgId}/tasks/{taskId}/{uuid}.{ext}` | `Task.imageUrl`         |
+| Org logo   | `orgs/{orgId}/{uuid}.{ext}`                | `Organization.image`    |
+
+Both fields store the **bare storage path**, not a full URL. URLs are resolved at display time:
+- Task images → `createSignedReadUrl(path)` (server-side, expires in 1 h)
+- Org logos → `getPublicUrl(path)` (permanent; used in hub page, org switcher)
+
+### Upload flow
+
+1. Client calls a server action to get a **signed upload URL** (never exposing `SUPABASE_SECRET_KEY` to the browser).
+2. Browser `PUT`s the file directly to the signed URL.
+3. Client calls a second server action to **save the storage path** to the DB, which also deletes the previous file if one existed.
+
+### Crop & zoom UI
+
+`components/ui/image-crop-dialog.tsx` is a shared dialog used by both org logo and task image upload. It is controlled via `file: File | null` — passing a `File` opens the dialog; `null` closes it.
+
+| Prop     | Type              | Description                                                   |
+| -------- | ----------------- | ------------------------------------------------------------- |
+| `file`   | `File \| null`    | The raw file selected by the user; `null` = dialog closed     |
+| `config` | `ImageCropConfig` | `{ aspect, outputWidth, outputHeight }` — crop shape and size |
+| `onCrop` | `(f: File) => void` | Called with the cropped canvas output as a new `File`       |
+| `onCancel` | `() => void`    | Called when the user dismisses the dialog                     |
+
+Crop configurations:
+
+| Use case  | `aspect` | Output size | Match                             |
+| --------- | -------- | ----------- | --------------------------------- |
+| Org logo  | `1`      | 512 × 512   | Round/square logo display         |
+| Task image | `1`     | 600 × 600   | `aspect-square` task view display |
+
+### Server actions (`app/actions/storage.ts`)
+
+| Action                 | Permission         | Description                                              |
+| ---------------------- | ------------------ | -------------------------------------------------------- |
+| `getSignedUploadUrl`   | `MANAGE_TASKS`     | Returns signed URL for private bucket (task images)      |
+| `saveTaskImagePath`    | `MANAGE_TASKS`     | Saves path to `Task.imageUrl`, deletes old file          |
+| `removeTaskImage`      | `MANAGE_TASKS`     | Deletes file and clears `Task.imageUrl`                  |
+| `getOrgLogoUploadUrl`  | `MANAGE_SETTINGS`  | Returns signed URL for public bucket (org logos)         |
+| `saveOrgLogoPath`      | `MANAGE_SETTINGS`  | Saves path to `Organization.image`, deletes old logo     |
+| `removeOrgLogo`        | `MANAGE_SETTINGS`  | Deletes logo file and clears `Organization.image`        |
+
+### Storage helpers (`lib/supabase-storage.ts`)
+
+| Function                      | Bucket  | Description                                               |
+| ----------------------------- | ------- | --------------------------------------------------------- |
+| `createSignedUploadUrl`       | Private | Signed URL for browser to PUT a task image                |
+| `createSignedReadUrl`         | Private | Short-lived signed URL to display a task image            |
+| `deleteStorageFile`           | Private | Delete a task image (silent on failure)                   |
+| `createSignedUploadUrlPublic` | Public  | Signed URL for browser to PUT an org logo                 |
+| `getPublicUrl`                | Public  | Permanent public URL for an org logo (no signing needed)  |
+| `deletePublicFile`            | Public  | Delete an org logo (silent on failure)                    |
+
+### next/image hostname
+
+`next.config.ts` includes a `remotePatterns` entry for `*.supabase.co` so `next/image` can serve Supabase Storage URLs:
+
+```ts
+{ protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" }
 ```
 
 ## Conversion Tool
@@ -671,7 +762,7 @@ Server Actions call `revalidatePath` to invalidate the Next.js cache so server-r
 
 | Route                                            | Guard                                      | Description                                                                                                                                                |
 | ------------------------------------------------ | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                              | Signed in                                  | Home                                                                                                                                                       |
+| `/`                                              | Signed in                                  | Hub — org cards with logo images (falls back to colored initial badge); recent org banner                                                                 |
 | `/signin`                                        | —                                          | Google OAuth sign-in                                                                                                                                       |
 | `/orgs/new`                                      | Signed in                                  | Create a new organization                                                                                                                                  |
 | `/orgs/join`                                     | Signed in                                  | Join an existing org as a franchisee using a one-time token                                                                                                |
@@ -686,7 +777,7 @@ Server Actions call `revalidatePath` to invalidate the Next.js cache so server-r
 | `/orgs/[orgId]/franchisee`                       | `requireParentOrgOwnerPage`                | Franchise management — invite tokens + franchisee list                                                                                                     |
 | `/orgs/[orgId]/tasks`                            | `requireOrgMemberPage`                     | Task definition list — sort, role filter, list/card toggle in sidebar; search in toolbar; Create Task action in sidebar (managers only)                    |
 | `/orgs/[orgId]/tasks/new`                        | `requireOrgPermissionPage MANAGE_TASKS`    | Create task — includes color picker                                                                                                                        |
-| `/orgs/[orgId]/tasks/[taskId]`                   | `requireOrgMemberPage`                     | Task detail view; clicking a task name in the timetable navigates here                                                                                     |
+| `/orgs/[orgId]/tasks/[taskId]`                   | `requireOrgMemberPage`                     | Task detail view — description, color, image preview (aspect-square); clicking a task name in the timetable navigates here |
 | `/orgs/[orgId]/tasks/[taskId]/edit`              | `requireOrgPermissionPage MANAGE_TASKS`    | Edit task — color picker pre-filled with current color                                                                                                     |
 | `/orgs/[orgId]/memberships`                      | `requireOrgMemberPage`                     | Member list — role filter, list/card toggle in sidebar; search in toolbar; Invite Member + Add Bot in sidebar (ActionSidebar on desktop, Dialog on mobile) |
 | `/orgs/[orgId]/memberships/new`                  | `requireOrgPermissionPage MANAGE_MEMBERS`  | Invite a new member by email (standalone page, also accessible from sidebar action)                                                                        |
@@ -697,7 +788,7 @@ Server Actions call `revalidatePath` to invalidate the Next.js cache so server-r
 | `/orgs/[orgId]/timetable/templates/new`          | `requireOrgMemberPage`                     | Create a new timetable template                                                                                                                            |
 | `/orgs/[orgId]/timetable/templates/[templateId]` | `requireOrgMemberPage`                     | Template editor — Calendar (drag-and-drop grid) or Simple (day table) view; cycle-length controls                                                          |
 | `/orgs/[orgId]/settings`                         | —                                          | Redirects to `/settings/organization`                                                                                                                      |
-| `/orgs/[orgId]/settings/organization`            | `requireOrgPermissionPage MANAGE_SETTINGS` | Org info, timezone, hours, transfer, delete                                                                                                                |
+| `/orgs/[orgId]/settings/organization`            | `requireOrgPermissionPage MANAGE_SETTINGS` | Org settings — logo upload (crop dialog, 512×512 square, public bucket), org info, timezone, hours, transfer, delete |
 | `/orgs/[orgId]/settings/roles`                   | `requireOrgPermissionPage MANAGE_ROLES`    | Role list with page sidebar — "+ Create Role" opens the form in the action sidebar; row ··· menu "Edit" also opens in action sidebar |
 | `/orgs/[orgId]/settings/timetable`               | —                                          | Timetable display settings (stub)                                                                                                                          |
 | `/orgs/[orgId]/settings/notification`            | —                                          | Notification preferences (stub)                                                                                                                            |

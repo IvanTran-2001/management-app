@@ -1,17 +1,24 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useParams } from "next/navigation";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ImageIcon, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
+import type { ImageCropConfig } from "@/components/ui/image-crop-dialog";
 import type { TimezoneOption } from "@/lib/timezones";
 import {
   updateOrgSettings,
   transferOrgOwnership,
   deleteOrg,
 } from "@/app/actions/orgs";
+import {
+  getOrgLogoUploadUrl,
+  saveOrgLogoPath,
+  removeOrgLogo,
+} from "@/app/actions/storage";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -49,6 +56,7 @@ interface OrgData {
   timezone: string;
   openTimeMin: number | null;
   closeTimeMin: number | null;
+  image: string | null;
 }
 
 interface Props {
@@ -56,6 +64,149 @@ interface Props {
   isParentOwner: boolean;
   transferableMembers: TransferableMember[];
   timezones: TimezoneOption[];
+}
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const PUBLIC_BUCKET = "friendchise-public";
+
+function storagePathToUrl(path: string): string {
+  return `${SUPABASE_URL}/storage/v1/object/public/${PUBLIC_BUCKET}/${path}`;
+}
+
+// ─── Org Logo Panel ───────────────────────────────────────────────────────────
+
+const LOGO_CROP_CONFIG: ImageCropConfig = {
+  aspect: 1,
+  outputWidth: 512,
+  outputHeight: 512,
+};
+
+function OrgLogoPanel({ orgId, initialPath }: { orgId: string; initialPath: string | null }) {
+  const [storagePath, setStoragePath] = useState<string | null>(initialPath);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const logoUrl = storagePath ? storagePathToUrl(storagePath) : null;
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setError(null);
+
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      setError("Only JPEG, PNG, and WebP images are supported.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be smaller than 5 MB.");
+      return;
+    }
+    setPendingFile(file);
+  }
+
+  function handleCrop(croppedFile: File) {
+    setPendingFile(null);
+    setError(null);
+    startTransition(async () => {
+      try {
+        const urlResult = await getOrgLogoUploadUrl(orgId, croppedFile.type);
+        if (!urlResult.ok) { setError(urlResult.error); return; }
+
+        const uploadRes = await fetch(urlResult.signedUrl, {
+          method: "PUT",
+          body: croppedFile,
+          headers: { "Content-Type": croppedFile.type },
+        });
+        if (!uploadRes.ok) { setError("Upload failed. Please try again."); return; }
+
+        const saveResult = await saveOrgLogoPath(orgId, urlResult.path);
+        if (!saveResult.ok) { setError(saveResult.error); return; }
+
+        setStoragePath(urlResult.path);
+      } catch {
+        setError("An unexpected error occurred. Please try again.");
+      }
+    });
+  }
+
+  function handleRemove() {
+    setError(null);
+    startTransition(async () => {
+      const result = await removeOrgLogo(orgId);
+      if (!result.ok) { setError(result.error); return; }
+      setStoragePath(null);
+    });
+  }
+
+  return (
+    <>
+      <ImageCropDialog
+        file={pendingFile}
+        config={LOGO_CROP_CONFIG}
+        onCrop={handleCrop}
+        onCancel={() => setPendingFile(null)}
+      />
+
+      <div className="rounded-lg border bg-card shadow-sm p-6 space-y-4">
+        <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+          Organization Logo
+        </h2>
+
+        <div className="flex items-center gap-4">
+          <div className="size-20 rounded-lg border bg-muted flex items-center justify-center overflow-hidden shrink-0">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="Org logo" className="size-full object-cover" />
+            ) : (
+              <ImageIcon className="size-8 text-muted-foreground" />
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isPending}
+                onClick={() => inputRef.current?.click()}
+              >
+                <Upload className="size-3.5 mr-1.5" />
+                {logoUrl ? "Replace" : "Upload"}
+              </Button>
+              {logoUrl && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={isPending}
+                  onClick={handleRemove}
+                >
+                  <X className="size-3.5 mr-1.5" />
+                  Remove
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              JPEG, PNG, or WebP · max 5 MB · square crop
+            </p>
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      </div>
+    </>
+  );
 }
 
 // ─── Org Info Form ────────────────────────────────────────────────────────────
@@ -328,6 +479,7 @@ export function OrgSettingsClient({
 
   return (
     <div className="space-y-6 p-6 max-w-2xl mx-auto">
+      <OrgLogoPanel orgId={orgId} initialPath={org.image} />
       <OrgInfoForm org={org} orgId={orgId} timezones={timezones} />
       <TransferOwnershipSection
         orgId={orgId}
