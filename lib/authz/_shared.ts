@@ -43,8 +43,10 @@ export async function isParentOrgOwner(
 /** Returns true if the given email belongs to an AdminUser row. */
 export async function isAdminUser(email: string | null): Promise<boolean> {
   if (!email) return false;
+  // Normalize email: trim whitespace and lowercase
+  const normalizedEmail = email.trim().toLowerCase();
   const admin = await prisma.adminUser.findUnique({
-    where: { email },
+    where: { email: normalizedEmail },
     select: { id: true },
   });
   return admin !== null;

@@ -43,11 +43,22 @@ export async function getAllFeedback() {
   });
 }
 
-/** Flips the `reviewed` flag on a single feedback item. Returns the updated id + reviewed value. */
-export async function toggleFeedbackReviewed(id: string, reviewed: boolean) {
-  return prisma.feedback.update({
+/**
+ * Flips the `reviewed` flag on a single feedback item.
+ * Returns { ok: true, id, reviewed } on success, or { ok: false } if the record doesn't exist.
+ */
+export async function toggleFeedbackReviewed(
+  id: string,
+  reviewed: boolean,
+): Promise<{ ok: true; id: string; reviewed: boolean } | { ok: false }> {
+  const result = await prisma.feedback.updateMany({
     where: { id },
     data: { reviewed },
-    select: { id: true, reviewed: true },
   });
+
+  if (result.count === 0) {
+    return { ok: false };
+  }
+
+  return { ok: true, id, reviewed };
 }

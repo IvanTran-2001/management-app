@@ -13,13 +13,13 @@
  * - Reviewed items are dimmed (opacity-50)
  */
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { AlertCircle, Lightbulb, Check } from "lucide-react";
 import { FeedbackType } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { getPublicUrl } from "@/lib/supabase-storage";
 import { toggleFeedbackReviewedAction } from "@/app/actions/feedback";
+import { getFeedbackImageReadUrl } from "@/app/actions/storage";
 
 type FeedbackItem = {
   id: string;
@@ -53,8 +53,26 @@ export function AdminFeedbackClient({
   const [filter, setFilter] = useState<"all" | "unreviewed">("unreviewed");
   const [feedback, setFeedback] = useState(initial);
   const [, startTransition] = useTransition();
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
 
   const displayed = filter === "all" ? feedback : feedback.filter((f) => !f.reviewed);
+
+  // Load signed URLs for all images on mount
+  useEffect(() => {
+    const loadImageUrls = async () => {
+      const urlMap: Record<string, string> = {};
+      for (const item of feedback) {
+        if (item.imageUrl) {
+          const result = await getFeedbackImageReadUrl(item.imageUrl);
+          if (result.ok) {
+            urlMap[item.imageUrl] = result.signedUrl;
+          }
+        }
+      }
+      setImageUrls(urlMap);
+    };
+    loadImageUrls();
+  }, [feedback]);
 
   function toggleReviewed(id: string, next: boolean) {
     setFeedback((prev) =>
@@ -159,16 +177,16 @@ export function AdminFeedbackClient({
                 <p className="text-sm whitespace-pre-wrap">{item.message}</p>
 
                 {/* Screenshot */}
-                {item.imageUrl && (
+                {item.imageUrl && imageUrls[item.imageUrl] && (
                   <a
-                    href={getPublicUrl(item.imageUrl)}
+                    href={imageUrls[item.imageUrl]}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block mt-1"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={getPublicUrl(item.imageUrl)}
+                      src={imageUrls[item.imageUrl]}
                       alt="Feedback screenshot"
                       className="rounded-md border border-border max-h-48 object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
                     />

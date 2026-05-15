@@ -10,7 +10,7 @@
  * associated with the user's current org context.
  */
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { AlertCircle, CheckCircle2, ImagePlus, Lightbulb, X } from "lucide-react";
 import { FeedbackType } from "@prisma/client";
@@ -39,6 +39,17 @@ export function FeedbackContent({ onClose }: FeedbackContentProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, []);
 
   function selectType(t: FeedbackType) {
     setType(t);
@@ -46,6 +57,11 @@ export function FeedbackContent({ onClose }: FeedbackContentProps) {
   }
 
   function handleRemoveImage() {
+    // Revoke the previous blob URL before clearing
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
     setImageStoragePath(null);
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -73,7 +89,7 @@ export function FeedbackContent({ onClose }: FeedbackContentProps) {
         fileType: file.type as "image/jpeg" | "image/png" | "image/webp",
       });
 
-      const urlResult = await getFeedbackImageUploadUrl(compressed.type);
+      const urlResult = await getFeedbackImageUploadUrl(compressed.type, compressed.size);
       if (!urlResult.ok) {
         toast.error(urlResult.error);
         return;
@@ -90,7 +106,13 @@ export function FeedbackContent({ onClose }: FeedbackContentProps) {
       }
 
       setImageStoragePath(urlResult.path);
-      setImagePreview(URL.createObjectURL(compressed));
+      // Revoke previous blob URL before creating a new one
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
+      const newBlobUrl = URL.createObjectURL(compressed);
+      blobUrlRef.current = newBlobUrl;
+      setImagePreview(newBlobUrl);
     } catch {
       toast.error("Something went wrong during upload.");
     } finally {

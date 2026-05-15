@@ -10,6 +10,8 @@
 import { FeedbackType } from "@prisma/client";
 import { requireUserAction, requireSuperAdminAction } from "@/lib/authz";
 import { createFeedback, toggleFeedbackReviewed } from "@/lib/services/feedback";
+import { getOrgMembership } from "@/lib/authz/_shared";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Submits a new piece of feedback on behalf of the signed-in user.
@@ -31,7 +33,26 @@ export async function submitFeedbackAction(
   const trimmed = message.trim();
   if (!trimmed) return { ok: false as const };
 
-  await createFeedback(authz.userId, type, trimmed, orgId, imageUrl);
+  // Verify orgId: only accept if user is a member of that org
+  let verifiedOrgId: string | null = null;
+  if (orgId) {
+    const membership = await getOrgMembership(orgId, authz.userId);
+    if (membership) {
+      verifiedOrgId = orgId;
+    }
+  }
+
+  // Verify imageUrl: only accept if the user owns the image
+  let verifiedImageUrl: string | null = null;
+  if (imageUrl) {
+    // Check that the imageUrl path belongs to this user (format: feedback/{userId}/...)
+    const expectedPrefix = `feedback/${authz.userId}/`;
+    if (imageUrl.startsWith(expectedPrefix)) {
+      verifiedImageUrl = imageUrl;
+    }
+  }
+
+  await createFeedback(authz.userId, type, trimmed, verifiedOrgId, verifiedImageUrl);
   return { ok: true as const };
 }
 
@@ -43,6 +64,8 @@ export async function toggleFeedbackReviewedAction(id: string, reviewed: boolean
   const authz = await requireSuperAdminAction();
   if (!authz.ok) return { ok: false as const };
 
-  await toggleFeedbackReviewed(id, reviewed);
+  const result = await toggleFeedbackReviewed(id, reviewed);
+  if (!result.ok) return { ok: false as const };
+
   return { ok: true as const };
 }
