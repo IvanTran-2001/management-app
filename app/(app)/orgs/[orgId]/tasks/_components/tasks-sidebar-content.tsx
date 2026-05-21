@@ -86,9 +86,13 @@ export function TasksSidebarContent({
     if (next.roleId) params.set("roleId", next.roleId);
     if (next.tagId) params.set("tagId", next.tagId);
     if (next.view && next.view !== "list") params.set("view", next.view);
-    if (next.mode === "list") params.set("mode", "list");
-    if (next.mode === "shared") params.set("mode", "shared");
-    if (next.mode === "available") params.set("mode", "available");
+    if (
+      next.mode === "list" ||
+      next.mode === "available" ||
+      (next.mode === "shared" && isModeExplicit)
+    ) {
+      params.set("mode", next.mode);
+    }
     const qs = params.toString();
     return `/orgs/${orgId}/tasks${qs ? `?${qs}` : ""}`;
   }

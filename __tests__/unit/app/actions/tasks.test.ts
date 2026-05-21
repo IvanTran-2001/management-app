@@ -5,6 +5,12 @@ import { PermissionAction } from "@prisma/client";
 
 vi.mock("@/lib/authz", () => ({
   requireOrgPermissionAction: vi.fn(),
+  requireParentOrgOwnerAction: vi.fn(),
+}));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    user: { findUnique: vi.fn().mockResolvedValue(null) },
+  },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -16,18 +22,20 @@ vi.mock("@/lib/services/tasks", () => ({
   createTask: vi.fn(),
   deleteTask: vi.fn(),
   updateTask: vi.fn(),
+  getTaskOwnerOrgId: vi.fn(),
   addTaskEligibility: vi.fn(),
   removeTaskEligibility: vi.fn(),
   setTaskEligibilities: vi.fn(),
 }));
 
-import { requireOrgPermissionAction } from "@/lib/authz";
+import { requireOrgPermissionAction, requireParentOrgOwnerAction } from "@/lib/authz";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   createTask,
   deleteTask,
   updateTask,
+  getTaskOwnerOrgId,
   addTaskEligibility,
   removeTaskEligibility,
 } from "@/lib/services/tasks";
@@ -112,6 +120,7 @@ describe("createTaskAction", () => {
       }),
       "u-1",
       "user@example.com",
+      null,
     );
     expect(revalidatePath).toHaveBeenCalledWith("/orgs/org-1/tasks");
     expect(redirect).toHaveBeenCalledWith("/orgs/org-1/tasks");
@@ -138,6 +147,8 @@ describe("createTaskAction", () => {
 
 describe("deleteTaskAction", () => {
   it("returns unauthorized when auth fails", async () => {
+    vi.mocked(getTaskOwnerOrgId).mockResolvedValue("org-1");
+    vi.mocked(requireParentOrgOwnerAction).mockResolvedValue(unauthorised);
     vi.mocked(requireOrgPermissionAction).mockResolvedValue(unauthorised);
 
     const result = await deleteTaskAction("org-1", "task-1");
@@ -147,6 +158,8 @@ describe("deleteTaskAction", () => {
   });
 
   it("returns error when service returns not ok", async () => {
+    vi.mocked(getTaskOwnerOrgId).mockResolvedValue("org-1");
+    vi.mocked(requireParentOrgOwnerAction).mockResolvedValue(unauthorised);
     vi.mocked(requireOrgPermissionAction).mockResolvedValue(authorised);
     vi.mocked(deleteTask).mockResolvedValue({
       ok: false,
@@ -161,6 +174,8 @@ describe("deleteTaskAction", () => {
   });
 
   it("revalidates and returns ok: true on success", async () => {
+    vi.mocked(getTaskOwnerOrgId).mockResolvedValue("org-1");
+    vi.mocked(requireParentOrgOwnerAction).mockResolvedValue(unauthorised);
     vi.mocked(requireOrgPermissionAction).mockResolvedValue(authorised);
     vi.mocked(deleteTask).mockResolvedValue({ ok: true, data: null });
 
@@ -171,6 +186,8 @@ describe("deleteTaskAction", () => {
   });
 
   it("delegates to deleteTask service with correct args", async () => {
+    vi.mocked(getTaskOwnerOrgId).mockResolvedValue("org-1");
+    vi.mocked(requireParentOrgOwnerAction).mockResolvedValue(unauthorised);
     vi.mocked(requireOrgPermissionAction).mockResolvedValue(authorised);
     vi.mocked(deleteTask).mockResolvedValue({ ok: true, data: null });
 
@@ -189,6 +206,8 @@ describe("deleteTaskAction", () => {
 
 describe("updateTaskAction", () => {
   it("returns unauthorized when auth fails", async () => {
+    vi.mocked(getTaskOwnerOrgId).mockResolvedValue("org-1");
+    vi.mocked(requireParentOrgOwnerAction).mockResolvedValue(unauthorised);
     vi.mocked(requireOrgPermissionAction).mockResolvedValue(unauthorised);
 
     const fd = makeFormData({ title: "Updated", color: "#6366f1" });
@@ -198,6 +217,8 @@ describe("updateTaskAction", () => {
   });
 
   it("returns service error wrapped in errors._", async () => {
+    vi.mocked(getTaskOwnerOrgId).mockResolvedValue("org-1");
+    vi.mocked(requireParentOrgOwnerAction).mockResolvedValue(unauthorised);
     vi.mocked(requireOrgPermissionAction).mockResolvedValue(authorised);
     vi.mocked(updateTask).mockResolvedValue({
       ok: false,
@@ -217,6 +238,8 @@ describe("updateTaskAction", () => {
   });
 
   it("returns ok: true and revalidates on success", async () => {
+    vi.mocked(getTaskOwnerOrgId).mockResolvedValue("org-1");
+    vi.mocked(requireParentOrgOwnerAction).mockResolvedValue(unauthorised);
     vi.mocked(requireOrgPermissionAction).mockResolvedValue(authorised);
     vi.mocked(updateTask).mockResolvedValue({ ok: true, data: {} as any });
 
