@@ -76,9 +76,9 @@ const ViewTaskPage = async ({ params, searchParams }: Props) => {
   ]);
 
   const sharedBy = !isOwner
-    ? (task as unknown as { organization: { name: string } }).organization.name
+    ? task?.organization?.name ?? undefined
     : undefined;
-  const createdByName = (task as unknown as { createdByName: string | null }).createdByName ?? undefined;
+  const createdByName = task?.createdByName ?? undefined;
 
   const eligibleRoles = task.eligibility.map((e) => e.role);
   const taskTags = task.tags.map((t) => t.tag);
@@ -101,7 +101,7 @@ const ViewTaskPage = async ({ params, searchParams }: Props) => {
             taskName={task.name}
             isOwner={isOwner}
             canManage={canManage}
-            scope={(task as unknown as { scope: "ORG" | "GLOBAL" }).scope}
+            scope={task.scope as "ORG" | "GLOBAL"}
             sections={sections}
             sharedBy={sharedBy}
             createdByName={createdByName}

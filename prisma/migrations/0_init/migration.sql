@@ -1,4 +1,3 @@
-◇ injected env (17) from .env.local // tip: ⌘ custom filepath { path: '/custom/path/.env' }
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 
@@ -150,6 +149,8 @@ CREATE TABLE "Task" (
     "description" TEXT,
     "color" TEXT NOT NULL,
     "orgId" TEXT NOT NULL,
+    "createdById" TEXT,
+    "createdByName" TEXT,
     "durationMin" INTEGER NOT NULL DEFAULT 60,
     "minPeople" INTEGER NOT NULL DEFAULT 1,
     "maxPeople" INTEGER,

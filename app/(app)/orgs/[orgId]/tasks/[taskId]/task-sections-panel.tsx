@@ -13,7 +13,7 @@
  * Changes are saved when the user clicks "Save Layout".
  */
 import { useState, useRef, useTransition } from "react";
-import { Eye, EyeOff, GripVertical, Save } from "lucide-react";
+import { Eye, EyeOff, GripVertical, Save, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { updateSectionLayoutAction } from "@/app/actions/tasks";
@@ -78,6 +78,24 @@ export function TaskSectionsPanel({
     );
   }
 
+  function moveSectionUp(idx: number) {
+    if (idx === 0) return;
+    setSections((prev) => {
+      const next = [...prev];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      return next;
+    });
+  }
+
+  function moveSectionDown(idx: number) {
+    if (idx === sections.length - 1) return;
+    setSections((prev) => {
+      const next = [...prev];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      return next;
+    });
+  }
+
   // ---- Save -----------------------------------------------------------------
 
   function handleSave() {
@@ -122,6 +140,24 @@ export function TaskSectionsPanel({
             >
               {section.title}
             </span>
+            <button
+              onClick={() => moveSectionUp(idx)}
+              disabled={idx === 0}
+              className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Move section up"
+              tabIndex={0}
+            >
+              <ChevronUp className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => moveSectionDown(idx)}
+              disabled={idx === sections.length - 1}
+              className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Move section down"
+              tabIndex={0}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </button>
             <button
               onClick={() => toggleVisible(idx)}
               className="text-muted-foreground hover:text-foreground transition-colors"

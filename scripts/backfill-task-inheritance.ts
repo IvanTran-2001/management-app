@@ -15,8 +15,8 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env", quiet: true });
 dotenv.config({ path: ".env.local", override: true, quiet: true });
 
-if (process.env.NODE_ENV === "production") {
-  console.error("This script must not be run in production.");
+if (process.env.NODE_ENV === "production" && !process.argv.includes("--confirm-production")) {
+  console.error("This script must not be run in production without --confirm-production flag.");
   process.exit(1);
 }
 
@@ -36,12 +36,20 @@ async function main() {
   const tasks = await prisma.task.findMany({ select: { id: true, orgId: true } });
   console.log(`Found ${tasks.length} tasks.`);
 
-  const { count } = await prisma.taskInheritance.createMany({
-    data: tasks.map((t) => ({ taskId: t.id, orgId: t.orgId })),
-    skipDuplicates: true,
-  });
+  const CHUNK_SIZE = 2000;
+  let totalCreated = 0;
 
-  console.log(`Created ${count} new TaskInheritance rows (${tasks.length - count} already existed).`);
+  for (let i = 0; i < tasks.length; i += CHUNK_SIZE) {
+    const chunk = tasks.slice(i, i + CHUNK_SIZE);
+    const { count } = await prisma.taskInheritance.createMany({
+      data: chunk.map((t) => ({ taskId: t.id, orgId: t.orgId })),
+      skipDuplicates: true,
+    });
+    totalCreated += count;
+    console.log(`  Processed ${Math.min(i + CHUNK_SIZE, tasks.length)}/${tasks.length} tasks (created ${count} in this chunk).`);
+  }
+
+  console.log(`\nCreated ${totalCreated} new TaskInheritance rows (${tasks.length - totalCreated} already existed).`);
 }
 
 main()

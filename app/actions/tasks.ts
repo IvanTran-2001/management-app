@@ -125,11 +125,6 @@ export async function createTaskAction(
   );
   if (!authz.ok) return { ok: false, errors: { _: ["Unauthorized"] } };
 
-  const creator = await prisma.user.findUnique({
-    where: { id: authz.userId },
-    select: { name: true },
-  });
-
   const raw = parseTaskFormData(formData);
   const parsed = createTaskSchema.safeParse(raw);
   if (!parsed.success) {
@@ -139,12 +134,23 @@ export async function createTaskAction(
     };
   }
 
+  let creatorName: string | undefined;
+  try {
+    const creator = await prisma.user.findUnique({
+      where: { id: authz.userId },
+      select: { name: true },
+    });
+    creatorName = creator?.name ?? undefined;
+  } catch {
+    creatorName = undefined;
+  }
+
   const task = await createTask(
     orgId,
     parsed.data,
     authz.userId,
     authz.userEmail,
-    creator?.name ?? null,
+    creatorName ?? null,
   );
   const roleIds = formData
     .getAll("roleIds")

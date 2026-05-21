@@ -51,6 +51,7 @@ async function main() {
 
   let updated = 0;
   let skipped = 0;
+  let failed = 0;
 
   for (const task of tasks) {
     const owner = task.organization.owner;
@@ -60,19 +61,24 @@ async function main() {
       continue;
     }
 
-    await prisma.task.update({
-      where: { id: task.id },
-      data: {
-        createdById: owner.id,
-        createdByName: owner.name,
-      },
-    });
+    try {
+      await prisma.task.update({
+        where: { id: task.id },
+        data: {
+          createdById: owner.id,
+          createdByName: owner.name,
+        },
+      });
 
-    console.log(`  OK    task ${task.id} → ${owner.name ?? owner.id}`);
-    updated++;
+      console.log(`  OK    task ${task.id} → ${owner.name ?? owner.id}`);
+      updated++;
+    } catch (err) {
+      console.error(`  FAIL  task ${task.id} — ${err}`);
+      failed++;
+    }
   }
 
-  console.log(`\nDone. Updated: ${updated}, Skipped: ${skipped}.`);
+  console.log(`\nDone. Updated: ${updated}, Skipped: ${skipped}, Failed: ${failed}.`);
 }
 
 main()

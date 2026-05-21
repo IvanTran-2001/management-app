@@ -415,7 +415,7 @@ export async function getAccessibleTasks(orgId: string) {
   const [ownTasks, inheritances] = await Promise.all([
     prisma.task.findMany({ where: { orgId }, include: taskInclude }),
     prisma.taskInheritance.findMany({
-      where: { orgId },
+      where: { orgId, task: { orgId: { not: orgId } } },
       include: { task: { include: taskInclude } },
     }),
   ]);
@@ -519,6 +519,30 @@ export async function inheritTask(
     select: { id: true, orgId: true },
   });
   if (!task) return { ok: false, error: "Task not available", code: "NOT_FOUND" };
+
+  const [requestingOrg, taskOwnerOrg] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { id: true, parentId: true },
+    }),
+    prisma.organization.findUnique({
+      where: { id: task.orgId },
+      select: { id: true, parentId: true },
+    }),
+  ]);
+
+  if (!requestingOrg || !taskOwnerOrg) {
+    return { ok: false, error: "Forbidden", code: "FORBIDDEN" };
+  }
+
+  const isRelated =
+    requestingOrg.parentId === taskOwnerOrg.id ||
+    taskOwnerOrg.parentId === requestingOrg.id ||
+    (requestingOrg.parentId && requestingOrg.parentId === taskOwnerOrg.parentId);
+
+  if (!isRelated) {
+    return { ok: false, error: "Forbidden", code: "FORBIDDEN" };
+  }
 
   const existing = await prisma.taskInheritance.findUnique({
     where: { taskId_orgId: { taskId, orgId } },

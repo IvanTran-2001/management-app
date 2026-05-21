@@ -16,9 +16,10 @@ import JoinFranchisePage from "./join-franchise-client";
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string | string[] }>;
 }) {
-  const { token } = await searchParams;
+  const params = await searchParams;
+  const token = Array.isArray(params.token) ? params.token[0] : params.token;
 
   let defaultSchedule:
     | {

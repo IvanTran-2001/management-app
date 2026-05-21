@@ -87,6 +87,7 @@ export function TasksSidebarContent({
     if (next.tagId) params.set("tagId", next.tagId);
     if (next.view && next.view !== "list") params.set("view", next.view);
     if (next.mode === "list") params.set("mode", "list");
+    if (next.mode === "shared") params.set("mode", "shared");
     if (next.mode === "available") params.set("mode", "available");
     const qs = params.toString();
     return `/orgs/${orgId}/tasks${qs ? `?${qs}` : ""}`;

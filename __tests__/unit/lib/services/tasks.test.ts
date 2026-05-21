@@ -29,6 +29,12 @@ vi.mock("@/lib/prisma", () => ({
       deleteMany: vi.fn(),
       createMany: vi.fn(),
     },
+    taskSectionLayout: {
+      createMany: vi.fn(),
+    },
+    taskInheritance: {
+      create: vi.fn(),
+    },
     auditLog: { create: vi.fn() },
   },
 }));

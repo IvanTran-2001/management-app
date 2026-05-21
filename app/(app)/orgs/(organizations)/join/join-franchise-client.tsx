@@ -150,11 +150,15 @@ function useScheduleState(defaults?: ScheduleDefaults) {
   const [closeTime, setCloseTime] = useState(
     defaults?.closeTimeMin != null ? minutesToTime(defaults.closeTimeMin) : "",
   );
-  const [days, setDays] = useState<DayKey[]>(
-    defaults?.operatingDays?.length
-      ? (defaults.operatingDays as DayKey[])
-      : ["mon", "tue", "wed", "thu", "fri"],
-  );
+
+  const validDays: DayKey[] = (() => {
+    if (!defaults?.operatingDays?.length) return ["mon", "tue", "wed", "thu", "fri"];
+    const allowedDays = new Set<string>(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
+    const filtered = defaults.operatingDays.filter((d): d is DayKey => allowedDays.has(d));
+    return filtered.length > 0 ? filtered : ["mon", "tue", "wed", "thu", "fri"];
+  })();
+
+  const [days, setDays] = useState<DayKey[]>(validDays);
   return {
     timezone,
     setTimezone,

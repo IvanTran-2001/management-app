@@ -240,9 +240,17 @@ export function TaskTable({
                 />
                 <div
                   className={`block p-4${!task._available ? " cursor-pointer" : ""}`}
+                  tabIndex={!task._available ? 0 : undefined}
+                  role={!task._available ? "button" : undefined}
                   onClick={() => {
                     if (!task._available)
                       router.push(`/orgs/${orgId}/tasks/${task.id}`);
+                  }}
+                  onKeyDown={(e) => {
+                    if (!task._available && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      router.push(`/orgs/${orgId}/tasks/${task.id}`);
+                    }
                   }}
                 >
                   <div className="flex flex-col gap-3">
