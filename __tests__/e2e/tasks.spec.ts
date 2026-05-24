@@ -319,6 +319,8 @@ test("edit task to add role → role badge visible in task list", async ({
   });
 
   await page.goto(`/orgs/${orgId}/tasks`);
+  // Wait for any client-side redirects (e.g. localStorage mode/filter restore) to settle
+  await page.waitForLoadState("networkidle");
   await searchTasks(page, taskTitle);
   await expect(
     page.getByRole("row").filter({ hasText: taskTitle }).getByText(roleName),

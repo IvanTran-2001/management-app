@@ -99,6 +99,8 @@ Provider: PostgreSQL (Supabase), managed via Prisma ORM.
 | `MemberRole`                     | Many-to-many junction between `Membership` and `Role`. A member can hold multiple roles.                                                                                                                                                                                                                                                                        |
 | `Task`                           | Reusable task definition (name, required `color` hex, duration, recurrence constraints, eligibility by role).                                                                                                                                                                                                                                                   |
 | `TaskEligibility`                | Links a `Task` to a `Role`, defining which roles can be assigned to it.                                                                                                                                                                                                                                                                                         |
+| `Tag`                            | An org-scoped label with a `name` and `color` hex. `isDefault: true` protects built-in tags from deletion. Unique on `(orgId, name)`.                                                                                                                                                                                                                           |
+| `TaskTag`                        | Many-to-many junction between `Task` and `Tag`. Composite PK on `(taskId, tagId)`.                                                                                                                                                                                                                                                                             |
 | `TimetableEntry`                 | A scheduled task occurrence with date, start/end times, status, and assignees.                                                                                                                                                                                                                                                                                  |
 | `TimetableEntryAssignee`         | Links a `Membership` to a `TimetableEntry` (many-to-many).                                                                                                                                                                                                                                                                                                      |
 | `TimetableSettings`              | Per-org timetable display preferences (view type, start day, slot duration).                                                                                                                                                                                                                                                                                    |
@@ -111,6 +113,7 @@ Provider: PostgreSQL (Supabase), managed via Prisma ORM.
 | `RosterTemplateEntry`            | One shift slot in a `RosterTemplate` — which member, which `weekIndex` (0-based within the cycle), which `dayIndex` (0 = Mon … 6 = Sun), optional `shiftStartMin`/`shiftEndMin`.                                                                                                                                                                                |
 | `FranchiseToken`                 | One-time invite token issued by a parent org for a franchisee to join.                                                                                                                                                                                                                                                                                          |
 | `Invite`                         | A member or franchise invite sent to a `User`. Carries a status (`PENDING`/`ACCEPTED`/`DECLINED`), snapshot fields for the org name and inviter name, and a JSON `metadata` blob with the roleIds/workingDays pre-filled for the accept step. Visible in the notification panel.                                                                                |
+| `Notification`                   | A generic in-app notification tied to a `User`. Stores a human-readable `message` and an optional `seenAt` timestamp. Used for invite-acceptance confirmations and other system events.                                                                                                                                                                          |
 | `AuditLog`                       | Append-only record of significant org mutations. Stores `action` (e.g. `task.create`), `entityType`, `entityId`, optional `before`/`after` JSON snapshots, the `actorId` who triggered the change, and a `createdAt` timestamp. Scoped per org. Actor is nullable (set to `NULL` on user deletion via `onDelete: SetNull`). Org deletion cascades all its logs. |
 | `ToolItem`                       | An org-scoped ingredient / unit pair used in the Conversion tool (e.g. "Boston Cream", unit "doz"). Shared across all `ConversionSet`s in the org.                                                                                                                                                                                                              |
 | `ConversionSet`                  | A named collection of conversion rates for an org (e.g. "Donut Batches"). Acts as the container for rates and templates.                                                                                                                                                                                                                                        |
@@ -419,6 +422,12 @@ app/
               roles-sidebar-content.tsx   # Page sidebar: "+ Create Role" button → opens RoleForm in ActionSidebar
             page.tsx                      # Registers RolesSidebarContent as page sidebar; table rendered by RolesClient
             roles-client.tsx              # Table of roles; row ··· menu Edit → ActionSidebar, Delete → AlertDialog
+          tags/           # Tag list (MANAGE_TASKS)
+            _components/
+              tag-form.tsx                # Shared create/edit form (name, color)
+              tags-sidebar-content.tsx    # Page sidebar: "+ Create Tag" button → opens TagForm in ActionSidebar
+            page.tsx                      # Registers TagsSidebarContent as page sidebar; table rendered by TagsClient
+            tags-client.tsx               # Table of tags; row ··· menu Edit → ActionSidebar, Delete → AlertDialog
           timetable/      # Timetable display settings (stub)
           notification/   # Notification preferences (stub)
   (auth)/
@@ -431,6 +440,9 @@ app/
     timetable-entries.ts
     franchisee.ts
     roles.ts
+    tags.ts               # Tag CRUD mutations (createTag, updateTag, deleteTag) — all require MANAGE_TASKS
+    roster.ts             # Roster entry and day-config mutations
+    feedback.ts           # submitFeedbackAction — creates a Feedback row + optional screenshot upload
     tools.ts              # Conversion tool mutations — all require MANAGE_TASKS
     storage.ts            # Image upload actions for task images (private) and org logos (public)
   api/                    # REST API route handlers (session-authenticated)
@@ -492,6 +504,10 @@ lib/
     franchise.ts
     invites.ts
     bots.ts
+    tags.ts             # Tag CRUD — createTag, updateTag, deleteTag
+    task-sections.ts    # TaskSectionLayout reads and updates (per-org section config)
+    feedback.ts         # submitFeedback — creates Feedback row, resolves storage path
+    roster.ts           # RosterEntry + RosterDayConfig CRUD, template-apply helper
     tools.ts            # ConversionSet · ToolItem · ConversionRate · ConversionTemplate · ConversionTemplateEntry CRUD
   validators/
     org.ts
@@ -839,7 +855,7 @@ All `/orgs/[orgId]/*` pages are guarded by at least `requireOrgMemberPage` — u
 
 ## Notification System
 
-In-app notifications are implemented via the `Invite` model and a bell icon in the navbar.
+In-app notifications are implemented via the `Invite` and `Notification` models and a bell icon in the navbar.
 
 - The `NavBar` server component fetches all visible invites and an unseen count for the session user on every render.
 - **Visibility window**: `PENDING` invites are always shown; `ACCEPTED`/`DECLINED` invites are shown for 7 days after being handled, then disappear naturally.

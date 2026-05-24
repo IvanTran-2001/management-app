@@ -71,7 +71,7 @@ export function TasksSidebarContent({
 }: TasksSidebarContentProps) {
   const router = useRouter();
 
-  const TASKS_MODE_KEY = "tasks-mode";
+  const TASKS_MODE_KEY = `tasks-mode-${orgId}`;
   const TASKS_PREFS_KEY = `tasks-prefs-${orgId}`;
   const isFirstRender = useRef(true);
 
