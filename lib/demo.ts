@@ -16,6 +16,66 @@ import { ROLE_KEYS } from "@/lib/rbac";
 import { localToUTC } from "@/lib/date-utils";
 import { PermissionAction, EntryStatus } from "@prisma/client";
 
+const DEMO_MAX_CONCURRENT = 20;
+const DEMO_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const DEMO_INACTIVE_TTL_MS = 60 * 60 * 1000; // 1 hour — used for aggressive cleanup
+const DEMO_GLOBAL_TASK_SOFT_CAP = 800; // trigger aggressive cleanup at this threshold
+const DEMO_GLOBAL_TASK_HARD_CAP = 1000; // hard reject new sessions above this threshold
+
+/** Per-entity limits enforced inside active demo sessions. */
+export const DEMO_LIMITS = {
+  PER_ORG_TASKS: 50,   // max tasks a single demo org can hold
+  PER_ORG_MEMBERS: 15, // max memberships per demo org
+  PER_USER_ORGS: 5,    // max orgs a demo user can own
+} as const;
+
+/** Returns true if the email belongs to a demo visitor account. */
+export function isDemoEmail(email: string): boolean {
+  return email.endsWith("@demo.friendchise.app");
+}
+
+/**
+ * Checks whether a demo user has hit a per-entity resource limit.
+ * Returns `{ ok: true }` for non-demo users (no-op) and for demo users
+ * who are within their quota.
+ */
+export async function checkDemoLimit(
+  userEmail: string | null | undefined,
+  type: "task" | "member" | "org",
+  orgId?: string,
+  userId?: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!userEmail || !isDemoEmail(userEmail)) return { ok: true };
+
+  if (type === "task" && orgId) {
+    const count = await prisma.task.count({ where: { orgId } });
+    if (count >= DEMO_LIMITS.PER_ORG_TASKS) {
+      return {
+        ok: false,
+        error: `Demo orgs are limited to ${DEMO_LIMITS.PER_ORG_TASKS} tasks.`,
+      };
+    }
+  } else if (type === "member" && orgId) {
+    const count = await prisma.membership.count({ where: { orgId } });
+    if (count >= DEMO_LIMITS.PER_ORG_MEMBERS) {
+      return {
+        ok: false,
+        error: `Demo orgs are limited to ${DEMO_LIMITS.PER_ORG_MEMBERS} members.`,
+      };
+    }
+  } else if (type === "org" && userId) {
+    const count = await prisma.organization.count({ where: { ownerId: userId } });
+    if (count >= DEMO_LIMITS.PER_USER_ORGS) {
+      return {
+        ok: false,
+        error: `Demo accounts are limited to ${DEMO_LIMITS.PER_USER_ORGS} organizations.`,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
 const ALL_OWNER_PERMISSIONS = Object.values(PermissionAction);
 
 function timeToMin(hhmm: string): number {
@@ -393,10 +453,60 @@ const TASKS: TaskDef[] = [
  * Creates a fresh demo user + fully-seeded "Donut Shop A" org.
  * Returns the user ID and org ID needed to sign the visitor in.
  */
+/**
+ * Deletes demo orgs + users older than DEMO_TTL_MS.
+ * Org must be deleted before User (no cascade on Organization.ownerId).
+ */
+/**
+ * Deletes expired demo users + their orgs.
+ *
+ * Normal mode:     removes sessions older than DEMO_TTL_MS (24 h).
+ * Aggressive mode: also removes sessions older than DEMO_INACTIVE_TTL_MS (1 h)
+ *                  — triggered when the global task count nears the soft cap.
+ *
+ * Org must be deleted before User (no cascade on Organization.ownerId).
+ */
+async function cleanupExpiredDemos(aggressive = false) {
+  const cutoff = new Date(Date.now() - (aggressive ? DEMO_INACTIVE_TTL_MS : DEMO_TTL_MS));
+  const expired = await prisma.user.findMany({
+    where: { email: { endsWith: "@demo.friendchise.app" }, createdAt: { lt: cutoff } },
+    select: { id: true },
+  });
+  if (expired.length === 0) return;
+  const ids = expired.map((u) => u.id);
+  await prisma.organization.deleteMany({ where: { ownerId: { in: ids } } });
+  await prisma.user.deleteMany({ where: { id: { in: ids } } });
+}
+
 export async function prepareDemoSession(): Promise<{
   userId: string;
   orgId: string;
 }> {
+  // Regular cleanup: remove sessions older than 24 h.
+  await cleanupExpiredDemos();
+
+  // Check global task count. If near the soft cap, run aggressive cleanup
+  // (removes sessions older than 1 h) to free space before accepting new visitors.
+  const globalTaskCount = await prisma.task.count({
+    where: { organization: { owner: { email: { endsWith: "@demo.friendchise.app" } } } },
+  });
+  if (globalTaskCount >= DEMO_GLOBAL_TASK_SOFT_CAP) {
+    await cleanupExpiredDemos(true);
+    const rechecked = await prisma.task.count({
+      where: { organization: { owner: { email: { endsWith: "@demo.friendchise.app" } } } },
+    });
+    if (rechecked >= DEMO_GLOBAL_TASK_HARD_CAP) {
+      throw new Error("Demo is under high load. Please try again in 10 minutes.");
+    }
+  }
+
+  const active = await prisma.user.count({
+    where: { email: { endsWith: "@demo.friendchise.app" } },
+  });
+  if (active >= DEMO_MAX_CONCURRENT) {
+    throw new Error("Demo capacity reached. Please try again in a few minutes.");
+  }
+
   const demoId = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   const email = `demo-${demoId}@demo.friendchise.app`;
 
