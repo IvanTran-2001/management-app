@@ -14,7 +14,7 @@
 import { prisma } from "@/lib/prisma";
 import { ROLE_KEYS } from "@/lib/rbac";
 import { localToUTC } from "@/lib/date-utils";
-import { PermissionAction, EntryStatus } from "@prisma/client";
+import { PermissionAction, EntryStatus, VoteType, TaskScope } from "@prisma/client";
 
 const DEMO_MAX_CONCURRENT = 20;
 const DEMO_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -30,8 +30,8 @@ export const DEMO_LIMITS = {
 } as const;
 
 /** Returns true if the email belongs to a demo visitor account. */
-export function isDemoEmail(email: string): boolean {
-  return email.endsWith("@demo.friendchise.app");
+export function isDemoEmail(email: string | null | undefined): boolean {
+  return !!email && email.endsWith("@demo.friendchise.app");
 }
 
 /**
@@ -524,8 +524,14 @@ export async function prepareDemoSession(): Promise<{
 
 // ─── Internal seeding ────────────────────────────────────────────────────────
 
+/** Returns a random pravatar URL — called once per person so images vary each demo run. */
+function randImg(): string {
+  return `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`;
+}
+
 async function seedDemoOrg(ownerId: string): Promise<string> {
   const { utcEntry } = makeDateUtils("Australia/Sydney");
+  const now = new Date();
 
   // ── Org ────────────────────────────────────────────────────────────────────
   const org = await prisma.organization.create({
@@ -753,6 +759,51 @@ async function seedDemoOrg(ownerId: string): Promise<string> {
     ],
   });
 
+  // ── Roster Entries ─────────────────────────────────────────────────────────
+  // Seed 4 weeks: prev, current, next, +2 weeks. weekStart = Monday 00:00 UTC.
+  {
+    const DAY_IDX: Record<string, number> = {
+      mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6,
+    };
+    function getWeekStart(offsetWeeks: number): Date {
+      const d = new Date(now);
+      const dow = d.getUTCDay(); // 0=Sun
+      d.setUTCDate(d.getUTCDate() + (dow === 0 ? -6 : 1 - dow) + offsetWeeks * 7);
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    }
+    const rosterMembers = [
+      { id: mOwner.id,           days: ["mon","tue","wed","thu","fri"],     start: 7*60,      end: 15*60      },
+      { id: mJordan.id,          days: ["mon","tue","wed","thu","fri"],     start: 6*60,      end: 14*60+30   },
+      { id: mCasey.id,           days: ["tue","wed","thu","fri","sat"],     start: 9*60,      end: 17*60+30   },
+      { id: mRiley.id,           days: ["mon","wed","fri","sat"],           start: 10*60,     end: 18*60+30   },
+      { id: mAlex.id,            days: ["mon","tue","thu"],                 start: 8*60,      end: 14*60      },
+      { id: mBotOpenSlot.id,     days: ["mon","wed","fri"],                 start: 6*60,      end: 14*60      },
+      { id: mBotMorningRunner.id,days: ["tue","thu","sat"],                 start: 6*60,      end: 14*60+30   },
+      { id: mBotFryerBackup.id,  days: ["mon","tue","wed"],                 start: 7*60,      end: 15*60      },
+      { id: mBotCounterFloat.id, days: ["wed","fri","sun"],                 start: 9*60,      end: 17*60+30   },
+      { id: mBotWeekendFill.id,  days: ["sat","sun"],                      start: 8*60,      end: 16*60      },
+    ];
+    const rosterData = [];
+    for (const weekOffset of [-1, 0, 1, 2]) {
+      const weekStart = getWeekStart(weekOffset);
+      for (const m of rosterMembers) {
+        for (const day of m.days) {
+          rosterData.push({
+            orgId: org.id,
+            membershipId: m.id,
+            membershipOrgId: org.id,
+            weekStart,
+            dayIndex: DAY_IDX[day],
+            shiftStartMin: m.start,
+            shiftEndMin: m.end,
+          });
+        }
+      }
+    }
+    await prisma.rosterEntry.createMany({ data: rosterData, skipDuplicates: true });
+  }
+
   // ── Tasks ──────────────────────────────────────────────────────────────────
   const roleByKey: Record<string, string> = {
     counter_staff: roleCounter.id,
@@ -780,9 +831,16 @@ async function seedDemoOrg(ownerId: string): Promise<string> {
             },
           })
           .then(async (task) => {
-            await prisma.taskEligibility.create({
-              data: { taskId: task.id, roleId: roleByKey[roleKey]! },
-            });
+            await Promise.all([
+              prisma.taskEligibility.create({
+                data: { taskId: task.id, roleId: roleByKey[roleKey]! },
+              }),
+              // Required: without this row the task list query (getInheritedTasks)
+              // won't find the task — it only looks up TaskInheritance rows.
+              prisma.taskInheritance.create({
+                data: { taskId: task.id, orgId: org.id },
+              }),
+            ]);
             return task;
           }),
     ),
@@ -790,6 +848,31 @@ async function seedDemoOrg(ownerId: string): Promise<string> {
 
   const tByName = Object.fromEntries(createdTasks.map((task) => [task.name, task]));
   const t = (name: string) => tByName[name]!;
+
+  // Publish recipe and cleaning tasks as GLOBAL so the franchisee's "Shared Tasks"
+  // view is populated and demonstrates the franchise inheritance feature.
+  await prisma.task.updateMany({
+    where: {
+      orgId: org.id,
+      name: {
+        in: [
+          "Recipe: White Choc Biscoff Frappe",
+          "Recipe: Honeycomb Frappe",
+          "Recipe: Coffee Frappe",
+          "Recipe: Salted Caramel Frappe",
+          "Recipe: Matcha Frappe",
+          "Recipe: Chocolate Milkshake",
+          "Recipe: Biscoff Custard Shake",
+          "Clean Ice Cream Machine",
+          "Clean Fryer (End of Day)",
+          "Deep Clean Hatco (Hot Jam) Unit",
+          "Deep Clean All Fridges",
+          "Deep Clean Doughnut Display",
+        ],
+      },
+    },
+    data: { scope: TaskScope.GLOBAL },
+  });
 
   // ── Templates ──────────────────────────────────────────────────────────────
   const [tplWeek1, tplWeekend, tplCleaning] = await Promise.all([
@@ -1179,7 +1262,6 @@ async function seedDemoOrg(ownerId: string): Promise<string> {
   await Promise.all(entries);
 
   // ── Franchise Tokens ───────────────────────────────────────────────────────
-  const now = new Date();
   await prisma.franchiseToken.createMany({
     data: [
       {
@@ -1199,6 +1281,434 @@ async function seedDemoOrg(ownerId: string): Promise<string> {
       },
     ],
   });
+
+  // ── Conversion Tool ────────────────────────────────────────────────────────
+  // Set: "Donut Production" — all rates expressed per Donut Ring (from side),
+  // except the Dough → Cake Flour cross-rate which models the flour sub-recipe.
+  const [
+    iRing, iDough, iCakeFlour, iYeast, iSalt,
+    iOil, iCustard, iBiscoff, iRaspJam, iChocFondant,
+    iGlaze, iHundreds, iBiscoffCrumb, iWhipCream, iCocoa,
+  ] = await Promise.all([
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Donut Ring",          unit: "each" } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Dough",               unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Cake Flour",          unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Yeast",               unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Salt",                unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Fry Oil",             unit: "L"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Custard Cream",       unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Biscoff Spread",      unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Raspberry Jam",       unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Chocolate Fondant",   unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Glaze",               unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Hundreds & Thousands",unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Biscoff Crumb",       unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Whipped Cream",       unit: "g"    } }),
+    prisma.toolItem.create({ data: { orgId: org.id, name: "Cocoa Powder",        unit: "g"    } }),
+  ]);
+
+  const convSet = await prisma.conversionSet.create({
+    data: { orgId: org.id, name: "Donut Production" },
+  });
+
+  await prisma.conversionRate.createMany({
+    data: [
+      // ── Dough components (per ring) ────────────────────────────────────────
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iDough.id,         fromQty: 1,   toQty: 75   }, // 75g dough per ring
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iCakeFlour.id,     fromQty: 1,   toQty: 45   }, // 45g flour per ring
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iYeast.id,         fromQty: 100, toQty: 5    }, // 5g yeast per 100 rings
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iSalt.id,          fromQty: 100, toQty: 4    }, // 4g salt per 100 rings
+      // ── Frying (per ring) ──────────────────────────────────────────────────
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iOil.id,           fromQty: 12,  toQty: 1    }, // 1L oil per 12 rings
+      // ── Fillings (per ring) ────────────────────────────────────────────────
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iCustard.id,       fromQty: 1,   toQty: 35   }, // 35g custard per ring
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iBiscoff.id,       fromQty: 1,   toQty: 30   }, // 30g biscoff per ring
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iRaspJam.id,       fromQty: 1,   toQty: 25   }, // 25g jam per ring
+      // ── Coatings (per ring) ────────────────────────────────────────────────
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iChocFondant.id,   fromQty: 1,   toQty: 40   }, // 40g chocolate fondant per ring
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iGlaze.id,         fromQty: 1,   toQty: 20   }, // 20g glaze per ring
+      // ── Toppings (per ring) ────────────────────────────────────────────────
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iHundreds.id,      fromQty: 1,   toQty: 8    }, // 8g sprinkles per ring
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iBiscoffCrumb.id,  fromQty: 1,   toQty: 10   }, // 10g biscoff crumb per ring
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iWhipCream.id,     fromQty: 1,   toQty: 15   }, // 15g whipped cream per ring
+      { setId: convSet.id, fromItemId: iRing.id,    toItemId: iCocoa.id,         fromQty: 1,   toQty: 5    }, // 5g cocoa per ring
+      // ── Cross-rate: Dough sub-recipe ───────────────────────────────────────
+      { setId: convSet.id, fromItemId: iDough.id,   toItemId: iCakeFlour.id,     fromQty: 100, toQty: 60   }, // 60g flour per 100g dough
+    ],
+  });
+
+  // ── Conversion Templates ───────────────────────────────────────────────────
+  const [tplDefault, tplMorning, tplWeekday, tplWeekendBatch, tplEvent] = await Promise.all([
+    prisma.conversionTemplate.create({ data: { setId: convSet.id, name: "Default"            } }),
+    prisma.conversionTemplate.create({ data: { setId: convSet.id, name: "Morning Batch"      } }),
+    prisma.conversionTemplate.create({ data: { setId: convSet.id, name: "Weekday Batch"      } }),
+    prisma.conversionTemplate.create({ data: { setId: convSet.id, name: "Weekend Batch"      } }),
+    prisma.conversionTemplate.create({ data: { setId: convSet.id, name: "Event / Catering"   } }),
+  ]);
+
+  // pinnedOutput bitmask — 1=from, 2=to, 3=both
+  await prisma.conversionTemplateEntry.createMany({
+    data: [
+      // Default — blank canvas with all items visible; ring qty left null so
+      // the user enters their own number when they first open the set
+      { templateId: tplDefault.id,  itemId: iRing.id,         quantity: null, pinnedOutput: 1 },
+      { templateId: tplDefault.id,  itemId: iDough.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplDefault.id,  itemId: iCakeFlour.id,    quantity: null, pinnedOutput: 2 },
+      { templateId: tplDefault.id,  itemId: iYeast.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplDefault.id,  itemId: iOil.id,          quantity: null, pinnedOutput: 2 },
+      { templateId: tplDefault.id,  itemId: iCustard.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplDefault.id,  itemId: iBiscoff.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplDefault.id,  itemId: iRaspJam.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplDefault.id,  itemId: iChocFondant.id,  quantity: null, pinnedOutput: 2 },
+      { templateId: tplDefault.id,  itemId: iGlaze.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplMorning.id, itemId: iRing.id,        quantity: 120, pinnedOutput: 1 },
+      { templateId: tplMorning.id, itemId: iDough.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplMorning.id, itemId: iCakeFlour.id,    quantity: null, pinnedOutput: 2 },
+      { templateId: tplMorning.id, itemId: iYeast.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplMorning.id, itemId: iOil.id,          quantity: null, pinnedOutput: 2 },
+      { templateId: tplMorning.id, itemId: iCustard.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplMorning.id, itemId: iBiscoff.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplMorning.id, itemId: iGlaze.id,        quantity: null, pinnedOutput: 2 },
+
+      // Weekday Batch — 80 rings; lean batch tracking only essentials
+      { templateId: tplWeekday.id, itemId: iRing.id,         quantity: 80,  pinnedOutput: 1 },
+      { templateId: tplWeekday.id, itemId: iDough.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekday.id, itemId: iCakeFlour.id,    quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekday.id, itemId: iOil.id,          quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekday.id, itemId: iCustard.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekday.id, itemId: iRaspJam.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekday.id, itemId: iGlaze.id,        quantity: null, pinnedOutput: 2 },
+
+      // Weekend Batch — 200 rings; full output including toppings
+      { templateId: tplWeekendBatch.id, itemId: iRing.id,         quantity: 200, pinnedOutput: 1 },
+      { templateId: tplWeekendBatch.id, itemId: iDough.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iCakeFlour.id,    quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iYeast.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iOil.id,          quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iCustard.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iBiscoff.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iChocFondant.id,  quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iGlaze.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iHundreds.id,     quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iBiscoffCrumb.id, quantity: null, pinnedOutput: 2 },
+      { templateId: tplWeekendBatch.id, itemId: iWhipCream.id,    quantity: null, pinnedOutput: 2 },
+
+      // Event / Catering — 360 rings; everything tracked
+      { templateId: tplEvent.id,   itemId: iRing.id,         quantity: 360, pinnedOutput: 1 },
+      { templateId: tplEvent.id,   itemId: iDough.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iCakeFlour.id,    quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iYeast.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iSalt.id,         quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iOil.id,          quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iCustard.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iBiscoff.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iRaspJam.id,      quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iChocFondant.id,  quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iGlaze.id,        quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iHundreds.id,     quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iBiscoffCrumb.id, quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iWhipCream.id,    quantity: null, pinnedOutput: 2 },
+      { templateId: tplEvent.id,   itemId: iCocoa.id,        quantity: null, pinnedOutput: 2 },
+    ],
+  });
+
+  // ── Tags ───────────────────────────────────────────────────────────────────
+  const [tagRecipe, tagCleaning, tagCritical, tagOps] = await Promise.all([
+    prisma.tag.create({ data: { orgId: org.id, name: "Recipe", color: "#8B5CF6" } }),
+    prisma.tag.create({ data: { orgId: org.id, name: "Cleaning", color: "#22C55E" } }),
+    prisma.tag.create({ data: { orgId: org.id, name: "Critical", color: "#EF4444" } }),
+    prisma.tag.create({ data: { orgId: org.id, name: "Operations", color: "#F59E0B" } }),
+  ]);
+
+  await prisma.taskTag.createMany({
+    data: [
+      // Recipe tasks
+      { taskId: t("Recipe: White Choc Biscoff Frappe").id, tagId: tagRecipe.id },
+      { taskId: t("Recipe: Honeycomb Frappe").id, tagId: tagRecipe.id },
+      { taskId: t("Recipe: Coffee Frappe").id, tagId: tagRecipe.id },
+      { taskId: t("Recipe: Salted Caramel Frappe").id, tagId: tagRecipe.id },
+      { taskId: t("Recipe: Matcha Frappe").id, tagId: tagRecipe.id },
+      { taskId: t("Recipe: Chocolate Milkshake").id, tagId: tagRecipe.id },
+      { taskId: t("Recipe: Biscoff Custard Shake").id, tagId: tagRecipe.id },
+      // Cleaning tasks
+      { taskId: t("Clean Ice Cream Machine").id, tagId: tagCleaning.id },
+      { taskId: t("Deep Clean Hatco (Hot Jam) Unit").id, tagId: tagCleaning.id },
+      { taskId: t("Deep Clean All Fridges").id, tagId: tagCleaning.id },
+      { taskId: t("Deep Clean Doughnut Display").id, tagId: tagCleaning.id },
+      { taskId: t("Clean & Tidy Storeroom").id, tagId: tagCleaning.id },
+      { taskId: t("Clean Fryer (End of Day)").id, tagId: tagCleaning.id },
+      { taskId: t("Clean Fondant Bain-Marie").id, tagId: tagCleaning.id },
+      // Critical tasks
+      { taskId: t("Fry Morning Batches").id, tagId: tagCritical.id },
+      { taskId: t("Fryer Oil Quality Check").id, tagId: tagCritical.id },
+      // Operations
+      { taskId: t("Open Shop Checklist").id, tagId: tagOps.id },
+      { taskId: t("Close Shop Checklist").id, tagId: tagOps.id },
+      { taskId: t("Shift Handover").id, tagId: tagOps.id },
+    ],
+  });
+
+  // ── Task Comments ──────────────────────────────────────────────────────────
+  // Each randImg() call produces a different random pravatar — varies per demo run
+  const IMG_JORDAN = randImg();
+  const IMG_CASEY = randImg();
+  const IMG_RILEY = randImg();
+  const IMG_ALEX = randImg();
+  const IMG_OWNER = randImg();
+
+  // --- Open Shop Checklist ---
+  const cOpenJordan = await prisma.taskComment.create({
+    data: {
+      taskId: t("Open Shop Checklist").id,
+      orgId: org.id,
+      authorId: null,
+      authorName: "Jordan",
+      authorImage: IMG_JORDAN,
+      content:
+        "Make sure the fryer is fully up to temp before opening — takes extra time on cold mornings. Check the thermometer, not just the indicator light.",
+      createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+    },
+  });
+  // Reply from Casey
+  await prisma.taskComment.create({
+    data: {
+      taskId: t("Open Shop Checklist").id,
+      orgId: org.id,
+      authorId: null,
+      authorName: "Casey",
+      authorImage: IMG_CASEY,
+      content: "Also double-check the float in the till. Had it short by $20 last Monday.",
+      parentId: cOpenJordan.id,
+      createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000 + 40 * 60 * 1000),
+    },
+  });
+  const cOpenRiley = await prisma.taskComment.create({
+    data: {
+      taskId: t("Open Shop Checklist").id,
+      orgId: org.id,
+      authorId: null,
+      authorName: "Riley",
+      authorImage: IMG_RILEY,
+      content:
+        "POS needs a restart roughly once a week. Best to do it before opening rather than mid-rush.",
+      createdAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  // --- Fry Morning Batches ---
+  // Pinned safety reminder from the owner
+  const cFryOwner = await prisma.taskComment.create({
+    data: {
+      taskId: t("Fry Morning Batches").id,
+      orgId: org.id,
+      authorId: ownerId,
+      authorName: "Demo User",
+      authorImage: IMG_OWNER,
+      content:
+        "⚠️ Never exceed 6 rings per side. Oil can overflow and become a fire hazard — this has happened before. Pinning this as a permanent reminder.",
+      isPinned: true,
+      pinnedAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+      createdAt: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000),
+    },
+  });
+  const cFryCasey = await prisma.taskComment.create({
+    data: {
+      taskId: t("Fry Morning Batches").id,
+      orgId: org.id,
+      authorId: null,
+      authorName: "Casey",
+      authorImage: IMG_CASEY,
+      content:
+        "If the dough is under-proofed it'll sink in the oil. Do the poke test — press gently and it should spring back slowly.",
+      createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+    },
+  });
+  // Reply from Jordan
+  await prisma.taskComment.create({
+    data: {
+      taskId: t("Fry Morning Batches").id,
+      orgId: org.id,
+      authorId: null,
+      authorName: "Jordan",
+      authorImage: IMG_JORDAN,
+      content: "Good tip — especially in winter when the proofer runs cold.",
+      parentId: cFryCasey.id,
+      createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000),
+    },
+  });
+
+  // --- Close Shop Checklist ---
+  await prisma.taskComment.create({
+    data: {
+      taskId: t("Close Shop Checklist").id,
+      orgId: org.id,
+      authorId: null,
+      authorName: "Riley",
+      authorImage: IMG_RILEY,
+      content:
+        "Don't skip logging wastage in the shift register — management checks this every morning.",
+      createdAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+    },
+  });
+
+  // --- Recipe: White Choc Biscoff Frappe ---
+  await prisma.taskComment.create({
+    data: {
+      taskId: t("Recipe: White Choc Biscoff Frappe").id,
+      orgId: org.id,
+      authorId: null,
+      authorName: "Alex",
+      authorImage: IMG_ALEX,
+      content:
+        "This one moves fastest on weekends. Get the Biscoff drizzle prepped in advance — you won't have time during the rush.",
+      createdAt: new Date(now.getTime() - 6 * 60 * 60 * 1000),
+    },
+  });
+
+  // Votes from the demo user (the only real user in the session)
+  await prisma.taskCommentVote.createMany({
+    data: [
+      { commentId: cOpenJordan.id, userId: ownerId, type: VoteType.UPVOTE },
+      { commentId: cOpenRiley.id, userId: ownerId, type: VoteType.UPVOTE },
+      { commentId: cFryCasey.id, userId: ownerId, type: VoteType.UPVOTE },
+      { commentId: cFryOwner.id, userId: ownerId, type: VoteType.UPVOTE },
+    ],
+  });
+
+  // ── Franchisee: Downtown Donuts ────────────────────────────────────────────
+  // A child org owned by the same demo user. Its tasks are GLOBAL so they
+  // appear in Donut Shop A's "Shared Tasks" view and can be inherited.
+  const franchisee = await prisma.organization.create({
+    data: {
+      name: "Downtown Donuts",
+      ownerId,
+      parentId: org.id,
+      openTimeMin: timeToMin("07:00"),
+      closeTimeMin: timeToMin("17:00"),
+      timezone: "Australia/Sydney",
+      operatingDays: ["mon", "tue", "wed", "thu", "fri", "sat"],
+    },
+  });
+
+  const [fRoleOwner, fRoleWorker] = await Promise.all([
+    prisma.role.create({
+      data: {
+        orgId: franchisee.id,
+        name: "Owner",
+        key: ROLE_KEYS.OWNER,
+        color: "#ef4444",
+        isDeletable: false,
+        isDefault: false,
+      },
+    }),
+    prisma.role.create({
+      data: {
+        orgId: franchisee.id,
+        name: "Worker",
+        key: ROLE_KEYS.DEFAULT_MEMBER,
+        color: "#6B7280",
+        isDeletable: false,
+        isDefault: true,
+      },
+    }),
+  ]);
+
+  await prisma.permission.createMany({
+    data: ALL_OWNER_PERMISSIONS.map((action) => ({ roleId: fRoleOwner.id, action })),
+    skipDuplicates: true,
+  });
+
+  const fOwner = await prisma.membership.create({
+    data: {
+      orgId: franchisee.id,
+      userId: ownerId,
+      workingDays: ["mon", "tue", "wed", "thu", "fri"],
+    },
+  });
+
+  await prisma.memberRole.create({
+    data: { membershipId: fOwner.id, roleId: fRoleOwner.id },
+  });
+
+  // Franchisee tasks — GLOBAL scope so Donut Shop A can see them as shared tasks
+  type FranchiseeTaskDef = [string, string, number, string, string, number, number];
+  const FRANCHISEE_TASKS: FranchiseeTaskDef[] = [
+    [
+      "Morning Opening Procedure",
+      "#F59E0B",
+      30,
+      "**Steps**\n1. Unlock front door and disable alarm\n2. Turn on all equipment (fryer, display warmers, POS)\n3. Check and record temperatures for all refrigerated units\n4. Set up till with correct opening float\n5. Sign off on the opening checklist",
+      "07:00",
+      0,
+      999,
+    ],
+    [
+      "Doughnut Quality Check",
+      "#EC4899",
+      15,
+      "**Before opening the display case:**\n1. Check each tray for freshness — maximum 4 hours since frying\n2. Remove any damaged or stale product\n3. Record the count in the wastage log\n4. Ensure display is clean and lit correctly",
+      "07:30",
+      0,
+      999,
+    ],
+    [
+      "Afternoon Restock",
+      "#3B82F6",
+      20,
+      "**Mid-day restock procedure:**\n1. Check remaining stock vs. projected afternoon sales\n2. Pull fresh product from back if available\n3. Restock packaging (bags, boxes, napkins)\n4. Note any items running low for next morning's order",
+      "12:00",
+      0,
+      999,
+    ],
+    [
+      "End of Day Report",
+      "#8B5CF6",
+      20,
+      "**Complete before closing:**\n1. Tally total sales vs. opening float — note any discrepancies\n2. Record wastage for the day\n3. Complete and submit the shift summary\n4. Brief next shift lead on any issues",
+      "16:00",
+      0,
+      999,
+    ],
+    [
+      "Equipment Temperature Log",
+      "#22C55E",
+      10,
+      "**Record twice daily (opening and mid-day):**\n- Fridge 1 (Fillings): must be 1–4°C\n- Fridge 2 (Display): must be 1–4°C\n- Freezer: must be −18°C or below\n\n_If any unit is out of range, notify the manager immediately._",
+      "07:00",
+      0,
+      1,
+    ],
+  ];
+
+  await Promise.all(
+    FRANCHISEE_TASKS.map(([name, color, durationMin, description, preferredStart, minWait, maxWait]) =>
+      prisma.task
+        .create({
+          data: {
+            orgId: franchisee.id,
+            name,
+            color,
+            durationMin,
+            description,
+            preferredStartTimeMin: timeToMin(preferredStart),
+            minPeople: 1,
+            minWaitDays: minWait,
+            maxWaitDays: maxWait,
+            scope: TaskScope.GLOBAL,
+          },
+        })
+        .then(async (task) => {
+          await Promise.all([
+            prisma.taskEligibility.create({
+              data: { taskId: task.id, roleId: fRoleWorker.id },
+            }),
+            prisma.taskInheritance.create({
+              data: { taskId: task.id, orgId: franchisee.id },
+            }),
+          ]);
+        }),
+    ),
+  );
 
   return org.id;
 }

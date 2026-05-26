@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/auth.config";
 import { log } from "@/lib/observability";
+import { isDemoEmail } from "@/lib/demo";
 
 /**
  * Full Auth.js config. Used by API routes and server components (Node.js runtime only).
@@ -39,6 +40,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" }, // ← change this
   callbacks: {
     ...authConfig.callbacks,
+    jwt({ token, account }) {
+      // On initial demo sign-in, record the issued time so we can enforce a
+      // fixed 2-hour expiry (not a rolling one) for demo sessions.
+      if (account && typeof token.email === "string" && isDemoEmail(token.email)) {
+        (token as Record<string, unknown>).demoIssuedAt = Math.floor(Date.now() / 1000);
+      }
+      // Enforce the 2-hour cap on every JWT refresh for demo sessions.
+      const demoIssuedAt = (token as Record<string, unknown>).demoIssuedAt;
+      if (typeof demoIssuedAt === "number") {
+        token.exp = demoIssuedAt + 2 * 60 * 60;
+      }
+      return token;
+    },
     session({ session, token }) {
       // ← token, not user
       if (session.user && token.sub) {

@@ -3,6 +3,7 @@ import { auth, signIn } from "@/auth";
 import { Logo } from "@/components/layout/logo";
 import { SignInToast } from "./sign-in-toast";
 import { prepareDemoSession } from "@/lib/demo";
+import { TryDemoButton } from "./try-demo-button";
 
 type SignInPageProps = {
   searchParams?: Promise<{ callbackUrl?: string; hint?: string }>;
@@ -83,7 +84,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             >
               <button
                 type="submit"
-                className="flex w-full items-center justify-center gap-3 rounded-md border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-md border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 <Logo />
                 {label}
@@ -102,19 +103,20 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           className="mt-3"
           action={async () => {
             "use server";
-            const { userId, orgId } = await prepareDemoSession();
+            let session: { userId: string; orgId: string } | undefined;
+            try {
+              session = await prepareDemoSession();
+            } catch {
+              redirect("/signin?hint=demo_unavailable");
+            }
+            if (!session) return;
             await signIn("demo", {
-              userId,
-              redirectTo: `/orgs/${orgId}`,
+              userId: session.userId,
+              redirectTo: `/orgs/${session.orgId}`,
             });
           }}
         >
-          <button
-            type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try Demo
-          </button>
+          <TryDemoButton />
           <p className="mt-2 text-center text-xs text-muted-foreground">
             No account needed — creates an isolated demo session.
           </p>
