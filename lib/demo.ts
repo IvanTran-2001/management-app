@@ -26,8 +26,8 @@ const DEMO_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
  * JWT has already expired. Must stay in sync with the token.exp logic in auth.ts.
  */
 export const DEMO_JWT_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
-const DEMO_GLOBAL_TASK_SOFT_CAP = 1200; // trigger aggressive cleanup at this threshold
-const DEMO_GLOBAL_TASK_HARD_CAP = 1800; // hard reject new sessions above this threshold
+const DEMO_GLOBAL_TASK_SOFT_CAP = 1480; // trigger aggressive cleanup at this threshold (80% of hard cap)
+const DEMO_GLOBAL_TASK_HARD_CAP = DEMO_MAX_CONCURRENT * 37; // hard reject new sessions above this threshold (50 * 37 = 1850)
 
 /** Per-entity limits enforced inside active demo sessions. */
 export const DEMO_LIMITS = {
