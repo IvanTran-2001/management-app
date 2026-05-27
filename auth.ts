@@ -62,7 +62,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // (Next-Auth otherwise sets session.expires from its own rolling maxAge)
       const demoIssuedAt = (token as Record<string, unknown>).demoIssuedAt;
       if (typeof demoIssuedAt === "number" && typeof token.exp === "number") {
-        session.expires = new Date(token.exp * 1000).toISOString();
+        session.expires = new Date(token.exp * 1000).toISOString() as string & Date;
       }
       return session;
     },
