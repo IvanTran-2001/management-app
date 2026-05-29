@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { signOut } from "next-auth/react";
+import { toast } from "sonner";
 
 function formatRemaining(ms: number): string {
   if (ms <= 0) return "Expired";
@@ -19,7 +21,13 @@ export function DemoTimer({ expiresAt }: { expiresAt: string }) {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setRemaining(expiry - Date.now());
+      const r = expiry - Date.now();
+      setRemaining(r);
+      if (r <= 0) {
+        clearInterval(id);
+        toast.error("Your demo session has expired.");
+        setTimeout(() => signOut({ redirectTo: "/signin" }), 1500);
+      }
     }, 1000);
     return () => clearInterval(id);
   }, [expiry]);
