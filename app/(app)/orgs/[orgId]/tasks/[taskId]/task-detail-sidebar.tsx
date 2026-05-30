@@ -327,7 +327,7 @@ export function TaskDetailSidebar({
             variant="outline"
             size="sm"
             className="w-full justify-start gap-2"
-            disabled
+            onClick={handleSectionsOpen}
           >
             <LayoutList className="h-3.5 w-3.5" />
             Edit Sections

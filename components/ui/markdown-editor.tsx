@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -98,24 +98,27 @@ export function MarkdownEditor({
     });
   }, [value]);
 
-  const tools: ToolbarItem[] = [
-    { icon: Bold, label: "Bold", action: () => wrapSelection("**") },
-    { icon: Italic, label: "Italic", action: () => wrapSelection("_") },
-    {
-      icon: Strikethrough,
-      label: "Strikethrough",
-      action: () => wrapSelection("~~"),
-    },
-    null,
-    { icon: List, label: "Bullet list", action: () => prefixLines("- ") },
-    {
-      icon: ListOrdered,
-      label: "Numbered list",
-      action: () => prefixLines("1. "),
-    },
-    null,
-    { icon: Heading3, label: "Heading", action: toggleHeading },
-  ];
+  const tools = useMemo<ToolbarItem[]>(
+    () => [
+      { icon: Bold, label: "Bold", action: () => wrapSelection("**") },
+      { icon: Italic, label: "Italic", action: () => wrapSelection("_") },
+      {
+        icon: Strikethrough,
+        label: "Strikethrough",
+        action: () => wrapSelection("~~"),
+      },
+      null,
+      { icon: List, label: "Bullet list", action: () => prefixLines("- ") },
+      {
+        icon: ListOrdered,
+        label: "Numbered list",
+        action: () => prefixLines("1. "),
+      },
+      null,
+      { icon: Heading3, label: "Heading", action: toggleHeading },
+    ],
+    [wrapSelection, prefixLines, toggleHeading],
+  );
 
   return (
     <div

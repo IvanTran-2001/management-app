@@ -48,7 +48,7 @@ interface SetSidebarContentProps {
 export function SetSidebarContent({
   orgId,
   setId,
-  setName,
+  setName: _setName,
   toolItems,
   rates,
   templates,

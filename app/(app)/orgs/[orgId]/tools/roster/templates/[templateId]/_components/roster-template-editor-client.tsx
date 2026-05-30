@@ -42,7 +42,7 @@ interface RosterTemplateEditorSidebarProps {
 function RosterTemplateEditorSidebar({
   orgId,
   templateId,
-  templateName,
+  templateName: _templateName,
   cycleWeeks,
   entries,
   onCycleWeeksChange,

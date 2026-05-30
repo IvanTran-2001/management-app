@@ -178,7 +178,6 @@ export function TaskTable({
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildUrl]);
 
   // Load next page — called by IntersectionObserver

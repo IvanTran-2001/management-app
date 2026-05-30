@@ -18,7 +18,6 @@ import { EditCellPanel } from "./edit-cell-dialog";
 import { EditDayConfigPanel } from "./edit-day-config-dialog";
 import {
   DAY_LABELS,
-  ROSTER_CELL_WIDTH,
   ROSTER_DAY_LABEL_WIDTH,
   ROSTER_CELL_MIN_HEIGHT,
 } from "./roster-board-constants";
@@ -71,10 +70,6 @@ export type RosterBoardProps = {
     entries: SavedRosterEntry[],
   ) => void;
 };
-
-function memberName(m: OrgMember): string {
-  return m.botName ?? m.user?.name ?? "Unknown";
-}
 
 function formatWeekRange(monday: Date): string {
   const sunday = new Date(monday);
