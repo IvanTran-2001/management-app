@@ -13,7 +13,7 @@ import {
 } from "@/lib/services/tasks";
 
 const SEED_USER_EMAIL =
-  process.env.INTEGRATION_TEST_USER_EMAIL ?? "alt28919@gmail.com";
+  process.env.INTEGRATION_TEST_USER_EMAIL ?? "casey@example.test";
 
 // Re-use the first seeded org that belongs to the integration test user.
 async function getSeedOrg() {

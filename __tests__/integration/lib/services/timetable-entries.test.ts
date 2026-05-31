@@ -16,7 +16,7 @@ import {
   removeTimetableEntryAssignee,
 } from "@/lib/services/timetable-entries";
 import { EntryStatus } from "@prisma/client";
-import { getSeedOrg } from "../../helpers";
+import { getSeedOrg, createTempOrgWithTask, cleanupTempOrg } from "../../helpers";
 
 describe("createTimetableEntry", () => {
   it("persists an entry with snapshot fields copied from the task", async () => {
@@ -46,20 +46,21 @@ describe("createTimetableEntry", () => {
 
   it("returns NOT_FOUND when the task belongs to a different org", async () => {
     const org = await getSeedOrg();
-    const crossOrgTask = await prisma.task.findFirstOrThrow({
-      where: { orgId: { not: org.id } },
-    });
+    const { org: otherOrg, task: crossOrgTask } = await createTempOrgWithTask();
+    try {
+      const result = await createTimetableEntry(
+        org.id,
+        crossOrgTask.id,
+        "2026-08-01",
+        360,
+      );
 
-    const result = await createTimetableEntry(
-      org.id,
-      crossOrgTask.id,
-      "2026-08-01",
-      360,
-    );
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("NOT_FOUND");
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.code).toBe("NOT_FOUND");
+    } finally {
+      await cleanupTempOrg(otherOrg.id);
+    }
   });
 });
 

@@ -18,7 +18,7 @@ import {
   duplicateTemplate,
   deleteTemplate,
 } from "@/lib/services/templates";
-import { getSeedOrg } from "../../helpers";
+import { getSeedOrg, createTempOrgWithTask, cleanupTempOrg } from "../../helpers";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -110,22 +110,24 @@ describe("addTemplateInstance", () => {
 
   it("returns NOT_FOUND when the task belongs to a different org", async () => {
     const org = await getSeedOrg();
-    const crossOrgTask = await prisma.task.findFirstOrThrow({
-      where: { orgId: { not: org.id } },
-    });
-    const { id: templateId } = await makeTemplate(org.id, 7);
+    const { org: otherOrg, task: crossOrgTask } = await createTempOrgWithTask();
+    try {
+      const { id: templateId } = await makeTemplate(org.id, 7);
 
-    const result = await addTemplateInstance(
-      org.id,
-      templateId,
-      crossOrgTask.id,
-      0,
-      360,
-    );
+      const result = await addTemplateInstance(
+        org.id,
+        templateId,
+        crossOrgTask.id,
+        0,
+        360,
+      );
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("NOT_FOUND");
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.code).toBe("NOT_FOUND");
+    } finally {
+      await cleanupTempOrg(otherOrg.id);
+    }
   });
 });
 
