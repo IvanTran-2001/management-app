@@ -176,6 +176,7 @@ export function MarkdownEditor({
       {tab === "write" && (
         <textarea
           ref={textareaRef}
+          id={name}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           rows={rows}
