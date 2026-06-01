@@ -173,7 +173,7 @@ export async function getToolItemListDetail(listId: string, orgId: string) {
           item: true,
           checklistEntry: true,
         },
-        orderBy: { position: "asc" },
+        orderBy: [{ position: "asc" }, { id: "asc" }],
       },
     },
   });
@@ -212,6 +212,34 @@ export async function addToolItemListEntryAtPosition(
   return prisma.toolItemListEntry.create({
     data: { listId, itemId, position, amount },
     include: { item: true, checklistEntry: true },
+  });
+}
+
+/**
+ * Moves a specific entry (by ID) to a new position without swapping.
+ * Used when stacking multiple items at the same grid cell position.
+ */
+export async function moveToolItemListEntryById(
+  orgId: string,
+  listId: string,
+  entryId: string,
+  toPosition: number,
+) {
+  return prisma.$transaction(async (tx) => {
+    // Verify entry belongs to the specified list and org
+    const entry = await tx.toolItemListEntry.findFirst({
+      where: { id: entryId, listId, list: { orgId } },
+      select: { id: true },
+    });
+    if (!entry) {
+      throw new Error("Entry not found or access denied");
+    }
+
+    return tx.toolItemListEntry.update({
+      where: { id: entryId },
+      data: { position: toPosition },
+      include: { item: true, checklistEntry: true },
+    });
   });
 }
 
@@ -432,8 +460,8 @@ export async function getConversionRates(orgId: string, setId: string) {
       id: true,
       fromQty: true,
       toQty: true,
-      fromItem: { select: { id: true, name: true, unit: true } },
-      toItem: { select: { id: true, name: true, unit: true } },
+      fromItem: { select: { id: true, name: true, unit: true, imgUrl: true } },
+      toItem: { select: { id: true, name: true, unit: true, imgUrl: true } },
     },
     orderBy: [{ fromItem: { name: "asc" } }, { toItem: { name: "asc" } }],
   });
@@ -522,11 +550,15 @@ export async function updateConversionRate(
  * by `createConversionSetAction`).
  */
 export async function getConversionTemplates(orgId: string, setId: string) {
-  return prisma.conversionTemplate.findMany({
+  const templates = await prisma.conversionTemplate.findMany({
     where: { setId, set: { orgId } },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+  // Always surface "Default" first
+  return templates.sort((a, b) =>
+    a.name === "Default" ? -1 : b.name === "Default" ? 1 : 0,
+  );
 }
 
 /** Creates a new empty template. Names must be unique per set (DB constraint). */
